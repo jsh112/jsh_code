@@ -290,7 +290,7 @@ def ensure_dir(p: str):
 # 실행 루프 (단일/듀얼)
 # ---------------------------
 def run_single(cam: int, params: Params):
-    cap = cv2.VideoCapture(cam, cv2.CAP_DSHOW)
+    cap = cv2.VideoCapture(cam, cv2.CAP_V4L2)
     if not cap.isOpened(): raise RuntimeError(f"카메라 열기 실패: {cam}")
     set_manual_exposure(cap)
 
@@ -340,8 +340,8 @@ def run_single(cam: int, params: Params):
     cv2.destroyAllWindows()
 
 def run_dual(left: int, right: int, params: Params):
-    capL = cv2.VideoCapture(left,  cv2.CAP_DSHOW)
-    capR = cv2.VideoCapture(right, cv2.CAP_DSHOW)
+    capL = cv2.VideoCapture(left, cv2.CAP_V4L2)
+    capR = cv2.VideoCapture(right, cv2.CAP_V4L2)
     if not (capL.isOpened() and capR.isOpened()): raise RuntimeError("듀얼 카메라 열기 실패")
     set_manual_exposure(capL); set_manual_exposure(capR)
 
