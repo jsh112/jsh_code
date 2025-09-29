@@ -14,9 +14,9 @@ import numpy as np
 import time
 
 # ========= 사용자 설정 =========
-NPZ_PATH    = r"~/Desktop/JSH_CODE/jsh_code/stereo_params_scaled.npz"  # 사용할 stereo_params 경로.
-CAM1_INDEX  = 1     # cam1 장치 인덱스
-CAM2_INDEX  = 2     # cam2 장치 인덱스
+NPZ_PATH    = r"/home/jsh/Desktop/JSH_CODE/jsh_code/stereo_params_scaled.npz"  # 사용할 stereo_params 경로.
+CAM1_INDEX  = 0     # cam1 장치 인덱스
+CAM2_INDEX  = 1     # cam2 장치 인덱스
 WINDOW_NAME = "Rectified: cam1 | cam2  (Click L then R; r:reset, q:quit)"
 SHOW_GRID   = True  # 수평 보조선
 # ==============================
@@ -43,8 +43,8 @@ Mx = 0.5 * Tx                # 중앙점 M = (Tx/2, 0, 0)  (cam1-rectified 좌�
 M  = np.array([Mx, 0.0, 0.0], dtype=np.float64)
 
 # ---------- 캡처 ----------
-cam1 = cv2.VideoCapture(CAM1_INDEX, cv2.CAP_DSHOW)
-cam2 = cv2.VideoCapture(CAM2_INDEX, cv2.CAP_DSHOW)
+cam1 = cv2.VideoCapture(CAM1_INDEX)
+cam2 = cv2.VideoCapture(CAM2_INDEX)
 # 해상도 시도(드라이버가 안 받으면 밑에서 resize로 맞춤)
 cam1.set(cv2.CAP_PROP_FRAME_WIDTH, W)
 cam1.set(cv2.CAP_PROP_FRAME_HEIGHT, H)
