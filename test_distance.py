@@ -41,10 +41,12 @@ def mouse_callback(event, x, y, flags, param):
     if event == cv2.EVENT_LBUTTONDOWN:
         click_pts[side] = (x, y)
         print(f"[Click] {side}-cam: {x}, {y}")
+        
+        # 왼쪽/오른쪽 둘 다 찍혔으면 3D 좌표 계산
         if click_pts["L"] and click_pts["R"]:
             X = triangulate_xy(P1, P2, click_pts["L"], click_pts["R"])
-            print(f"-> 3D 좌표 (mm): {X}")
-            # 클릭 후 초기화
+            print(f"-> 3D 좌표 (mm): X={X[0]:.2f}, Y={X[1]:.2f}, Z={X[2]:.2f}")
+            # 좌표 초기화
             click_pts["L"], click_pts["R"] = None, None
 
 cv2.namedWindow("Left")
