@@ -14,7 +14,7 @@ import numpy as np
 import time
 
 # ========= 사용자 설정 =========
-NPZ_PATH    = r"C:\Users\user\Documents\캡스턴 디자인\triangulation\calib_out\20250915_145057\stereo\stereo_params_scaled.npz"  # 사용할 stereo_params 경로.
+NPZ_PATH    = r"~/Desktop/JSH_CODE/jsh_code/stereo_params_scaled.npz"  # 사용할 stereo_params 경로.
 CAM1_INDEX  = 1     # cam1 장치 인덱스
 CAM2_INDEX  = 2     # cam2 장치 인덱스
 WINDOW_NAME = "Rectified: cam1 | cam2  (Click L then R; r:reset, q:quit)"
