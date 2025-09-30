@@ -69,7 +69,7 @@ def extract_holds_with_indices(frame_bgr, model, selected_class_name=None, mask_
                       "contour": contour, "center": (cx,cy), "conf": conf})
     return holds
 
-def match_holds(holdsL, holdsR, max_dist_px=30, row_tol=10):
+def match_holds(holdsL, holdsR, max_dist_px=30, row_tol=30):
     matched_pairs = []
     used_R = set()
     for Lh in holdsL:
