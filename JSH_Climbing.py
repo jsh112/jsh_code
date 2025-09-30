@@ -416,7 +416,9 @@ def main():
     ptsR = np.array([idxR[hid]["center"] for hid in common_ids], dtype=np.float32)
 
     # 2. Fundamental matrix 계산 (테스트용)
-    F, _ = cv2.findFundamentalMat(ptsL, ptsR, cv2.FM_8POINT)
+    F, mask = cv2.findFundamentalMat(ptsL, ptsR, cv2.FM_RANSAC)
+    print(f"F matrix is {F}\n\n")
+    print(f"mask is {mask}\n\n")
 
     # 3. 에피폴라 라인 시각화
     # 마지막으로 캡쳐한 초기 frame 사용
