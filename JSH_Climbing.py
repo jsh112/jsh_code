@@ -224,10 +224,8 @@ def save_holds_to_csv_real_time(rows, csv_path="grip_records.csv"):
     # CSV 저장
     try:
         with open(csv_path, mode="w", newline="") as f:
-            # 헤더
-            header = format_row_fixed_width({
-                "hold_id":"hold_id","x_mm":"x_mm","y_mm":"y_mm","z_mm":"z_mm","color":"color"
-            })
+            # 헤더 (문자열 그대로)
+            header = "hold_id".rjust(10) + "x_mm".rjust(10) + "y_mm".rjust(10) + "z_mm".rjust(10) + "color".rjust(15)
             f.write(header + "\n")
 
             # 데이터
@@ -235,6 +233,7 @@ def save_holds_to_csv_real_time(rows, csv_path="grip_records.csv"):
                 f.write(format_row_fixed_width(r) + "\n")
     except Exception as e:
         print(f"CSV 저장 실패: {e}")
+
 
 def save_holds_to_csv_cumulative(cumulative_rows, csv_path="grip_records.csv"):
     """
