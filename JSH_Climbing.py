@@ -41,8 +41,8 @@ except Exception:
 NPZ_PATH       = r"/home/jsh/Desktop/JSH_CODE/jsh_code/stereo_params_scaled.npz"
 MODEL_PATH     = r"/home/jsh/Desktop/JSH_CODE/jsh_code/best_5.pt"
 
-CAM1_INDEX     = 0   # 왼쪽 카메라
-CAM2_INDEX     = 1   # 오른쪽 카메라
+CAM1_INDEX     = 1   # 왼쪽 카메라
+CAM2_INDEX     = 0   # 오른쪽 카메라
 
 SWAP_INPUT     = False   # 입력 좌/우 스왑
 SWAP_DISPLAY   = False   # 화면 표시 좌/우 스왑
