@@ -454,20 +454,16 @@ def main():
     ser = serial.Serial("/dev/ttyUSB0", 115200, timeout=1)
     time.sleep(2)  # 아두이노 리셋 대기
 
-    def send_servo_angles(yaw_pwm, pitch_pwm):
-        """yaw/pitch PWM 값을 아두이노로 전송"""
-        # float → int 변환
-        yaw_pwm = int(round(yaw_pwm))
-        pitch_pwm = int(round(pitch_pwm))
-
-        # 서보 안전 범위 제한 (Arduino 기준 1000~2000us)
-        yaw_pwm   = max(1000, min(2000, yaw_pwm))
-        pitch_pwm = max(1000, min(2000, pitch_pwm))
+    def send_servo_angles(yaw_angle, pitch_angle):
+        """yaw/pitch 각도를 받아 아두이노 PWM으로 전송"""
+        # 각도를 PWM으로 변환
+        yaw_pwm   = angle_to_pwm(yaw_angle, min_angle=-15, max_angle=15)
+        pitch_pwm = angle_to_pwm(pitch_angle, min_angle=-15, max_angle=15)
 
         # 2바이트씩 little-endian 전송
         data = struct.pack('<HH', yaw_pwm, pitch_pwm)
         ser.write(data)
-
+    
     # 스테레오 로드
     map1x, map1y, map2x, map2y, P1, P2, size, B, M = load_stereo(NPZ_PATH)
     W, H = size
@@ -546,8 +542,10 @@ def main():
         # 1. 레이저 원점 기준으로 pitch, yaw 각도 계산
         pitch_deg, yaw_deg = point_to_motor_angles(point, O)
     
-        pitch_pwm = angle_to_pwm(pitch_deg)
-        yaw_pwm   = angle_to_pwm(yaw_deg)
+        # 실제 각도 범위로 clamp
+        pitch_pwm = angle_to_pwm(pitch_deg, min_angle=-10, max_angle=0, min_pwm=1000, max_pwm=2000)
+        yaw_pwm   = angle_to_pwm(yaw_deg,   min_angle=-5,  max_angle=8, min_pwm=1000, max_pwm=2000)
+
         
         # 3. 값 확인
         print(f"Point {i}: Pitch={pitch_deg:.2f}° ({pitch_pwm}us), Yaw={yaw_deg:.2f}° ({yaw_pwm}us)")
