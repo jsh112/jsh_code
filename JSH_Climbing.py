@@ -181,8 +181,8 @@ def main():
                 cv2.drawContours(vis,[cnt_shifted],-1,h["color"],2)
                 cx,cy = h["center"]
                 cv2.circle(vis,(cx+xoff,cy),4,(255,255,255),-1)
-                cv2.putText(vis,f"ID:{h['hold_index']}",(cx+xoff-10,cy+20),
-                            cv2.FONT_HERSHEY_SIMPLEX,0.5,h["color"],2)
+                # cv2.putText(vis,f"ID:{h['hold_index']}",(cx+xoff-10,cy+20),
+                #            cv2.FONT_HERSHEY_SIMPLEX,0.5,h["color"],2)
 
         # 3D 좌표 (매칭된 홀드 인덱스 기준)
         for hL in holdsL:
@@ -191,7 +191,7 @@ def main():
             if hR:
                 X = triangulate_xy(P1,P2,hL["center"],hR["center"])
                 txt = f"ID{hid}  X=({X[0]:.1f},{X[1]:.1f},{X[2]:.1f}) mm"
-                cv2.putText(vis,txt,(10,30+20*hid),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,255,0),1)
+                # cv2.putText(vis,txt,(10,30+20*hid),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,255,0),1)
 
         cv2.imshow("Stereo YOLO 3D",vis)
         k = cv2.waitKey(1) & 0xFF
