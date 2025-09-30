@@ -174,16 +174,22 @@ def save_holds_3d_to_csv(holdsL, holdsR, P1, P2, csv_path):
 
     return rows
 
-def save_holds_to_csv(rows, csv_path=CSV_GRIPS_PATH):
-    """현재까지 기록된 홀드 3D 좌표를 CSV로 저장"""
+def save_holds_to_csv(rows, csv_path="grip_records.csv"):
+    """
+    현재까지 기록된 홀드 3D 좌표를 CSV로 저장 (고정폭 정렬)
+    """
     if not rows:
         return
-    fieldnames = ["hold_id", "x_mm", "y_mm", "z_mm", "color"]
+
+    # 고정폭 포맷 지정
+    header_fmt = "{:<8} {:>10} {:>10} {:>10} {:<10}"
+    row_fmt    = "{:<8} {:>10.1f} {:>10.1f} {:>10.1f} {:<10}"
+    
     try:
-        with open(csv_path, mode="w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerows(rows)
+        with open(csv_path, "w") as f:
+            f.write(header_fmt.format("hold_id","x_mm","y_mm","z_mm","color") + "\n")
+            for r in rows:
+                f.write(row_fmt.format(r["hold_id"], r["x_mm"], r["y_mm"], r["z_mm"], r["color"]) + "\n")
     except Exception as e:
         print(f"CSV 저장 실패: {e}")
 
