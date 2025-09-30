@@ -419,17 +419,6 @@ def main():
     # 좌우 수평 오차 계산 (Fundamental matrix 없이)
     y_errors = np.abs(ptsL[:,1] - ptsR[:,1])
     print(f"[Epipolar check] 평균 Y 오차: {np.mean(y_errors):.2f}px, 최대: {np.max(y_errors):.2f}px")
-
-    # 홀드 겹쳐서 그리기
-    Lr_show = draw_holds_on_image(Lr_show, holdsL, filled_ids=filled_ids)
-    Rr_show = draw_holds_on_image(Rr_show, holdsR, filled_ids=filled_ids)
-
-    # 좌우 수평 오차 출력
-    y_errors = np.abs(ptsL[:,1] - ptsR[:,1])
-    print(f"[Epipolar check] 평균 Y 오차: {np.mean(y_errors):.2f}px, 최대: {np.max(y_errors):.2f}px")
-
-    cv2.imshow("Left Epipolar + Holds", Lr_show)
-    cv2.imshow("Right Epipolar + Holds", Rr_show)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
