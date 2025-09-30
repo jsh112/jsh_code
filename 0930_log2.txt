@@ -1,0 +1,56 @@
+[Info] image_size=(640, 480), baseline~357.00 mm
+[Laser] Origin O (mm, LEFT-based) = [      -18.5         -80         -33]
+[Info] Color filter: all
+[Init] First 3 frames: YOLO seg & merge ...
+
+0: 480x640 1 Hold_Blue, 4 Hold_Grays, 5 Hold_Greens, 2 Hold_Pinks, 1 Hold_Purple, 1 Hold_Red, 1 Hold_Sky, 3 Hold_Yellows, 1734.6ms
+Speed: 8.4ms preprocess, 1734.6ms inference, 69.8ms postprocess per image at shape (1, 3, 480, 640)
+
+0: 480x640 1 Hold_Black, 2 Hold_Grays, 5 Hold_Greens, 2 Hold_Pinks, 1 Hold_Purple, 1 Hold_Red, 1 Hold_White, 3 Hold_Yellows, 1474.9ms
+Speed: 4.8ms preprocess, 1474.9ms inference, 54.8ms postprocess per image at shape (1, 3, 480, 640)
+  - frame 1/3: L=5  R=5
+
+0: 480x640 1 Hold_Blue, 3 Hold_Grays, 4 Hold_Greens, 2 Hold_Pinks, 5 Hold_Purples, 1 Hold_Red, 1 Hold_Sky, 3 Hold_Yellows, 1479.8ms
+Speed: 5.8ms preprocess, 1479.8ms inference, 74.3ms postprocess per image at shape (1, 3, 480, 640)
+
+0: 480x640 1 Hold_Black, 1 Hold_Gray, 5 Hold_Greens, 2 Hold_Pinks, 1 Hold_Purple, 1 Hold_Red, 1 Hold_White, 3 Hold_Yellows, 1647.0ms
+Speed: 4.7ms preprocess, 1647.0ms inference, 100.9ms postprocess per image at shape (1, 3, 480, 640)
+  - frame 2/3: L=4  R=5
+
+0: 480x640 1 Hold_Blue, 1 Hold_Gray, 4 Hold_Greens, 2 Hold_Pinks, 6 Hold_Purples, 1 Hold_Red, 1 Hold_Sky, 1 Hold_White, 2 Hold_Yellows, 1568.9ms
+Speed: 5.0ms preprocess, 1568.9ms inference, 65.1ms postprocess per image at shape (1, 3, 480, 640)
+
+0: 480x640 1 Hold_Black, 3 Hold_Grays, 4 Hold_Greens, 3 Hold_Pinks, 3 Hold_Purples, 1 Hold_Red, 3 Hold_Whites, 2 Hold_Yellows, 1608.7ms
+Speed: 4.9ms preprocess, 1608.7ms inference, 68.9ms postprocess per image at shape (1, 3, 480, 640)
+  - frame 3/3: L=4  R=4
+[Info] 공통 홀드 개수: 5
+ptsL is [[        250         112]
+ [        314         142]
+ [        348         258]
+ [        320         315]
+ [        555         471]]
+ptsR is [[        308          78]
+ [        373         106]
+ [        408         222]
+ [        377         279]
+ [        594         385]]
+[Epipolar check] 평균 Y 오차: 45.60px, 최대: 86.00px
+Point 0: X=582.01 mm, Y=950.04 mm, Z=-4789.25 mm
+Point 1: X=185.31 mm, Y=759.41 mm, Z=-4712.48 mm
+Point 2: X=-20.19 mm, Y=56.60 mm, Z=-4636.72 mm
+Point 3: X=154.23 mm, Y=-297.48 mm, Z=-4878.22 mm
+Point 4: X=-1994.88 mm, Y=-1687.85 mm, Z=-7348.58 mm
+Point 0: errL=17.07px, errR=16.93px
+Point 1: errL=18.07px, errR=17.93px
+Point 2: errL=18.01px, errR=17.99px
+Point 3: errL=17.97px, errR=18.03px
+Point 4: errL=42.53px, errR=43.48px
+[Summary] Avg error: Left=22.73px, Right=22.87px
+errs_L is [np.float64(17.070000177736574), np.float64(18.06523321821722), np.float64(18.00507496708406), np.float64(17.974780140136556), np.float64(42.531341104591355)]
+errs_R is [np.float64(16.930214031924933), np.float64(17.934794817231296), np.float64(17.9949253968864), np.float64(18.02523891146498), np.float64(43.48405298459593)]
+[ΔAngles] (hold_index order):
+  0->1: Δyaw=+4.70°, Δpitch=+1.97°, angle=5.01°
+  1->2: Δyaw=+2.51°, Δpitch=+8.46°, angle=8.82°
+  2->3: Δyaw=-2.06°, Δpitch=+4.27°, angle=4.74°
+  3->4: Δyaw=+17.16°, Δpitch=+9.41°, angle=19.43°
+hi
