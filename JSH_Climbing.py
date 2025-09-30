@@ -285,6 +285,56 @@ def main():
 
     all_rows = []
 
+    # while True:
+    #     ok1, f1 = cap1.read(); ok2, f2 = cap2.read()
+    #     if not (ok1 and ok2): break
+
+    #     Lr = rectify(f1, map1x, map1y, size)
+    #     Rr = rectify(f2, map2x, map2y, size)
+
+    #     holdsL = extract_holds(Lr, model)
+    #     holdsR = extract_holds(Rr, model)
+
+    #     # ---------------- 좌우 홀드 매칭 테스트 ----------------
+    #     for h in holdsL: h["frame_shape"] = Lr.shape[:2]
+    #     for h in holdsR: h["frame_shape"] = Rr.shape[:2]
+
+    #     matches = match_holds_by_iou(holdsL, holdsR, iou_thresh=0.1)
+    #     vis_matches = visualize_matches_iou(Lr, Rr, matches)
+    #     cv2.imshow("Matches_IOU", vis_matches)
+    #     # -------------------------------------------------------
+
+    #     # 좌/우 병합 및 인덱스 유지 (화면 표시용)
+    #     merged_holds = merge_holds_by_center([holdsL, holdsR])
+
+    #     # 화면 표시
+    #     vis = np.hstack([Lr, Rr])
+    #     for h in merged_holds:
+    #         cx, cy = h["center"]
+    #         cv2.circle(vis, (cx, cy), 4, h["color"], -1)
+    #         cv2.putText(vis, str(h["hold_index"]), (cx, cy-5),
+    #                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+
+    #     # 3D 좌표 계산 후 누적 (IOU 매칭 기준)
+    #     for m in matches:
+    #         hl = m["L"]
+    #         hr = m["R"]
+    #         hid = hl.get("hold_index", hl.get("center"))  # hold_index 없으면 center로 임시 ID
+    #         X = triangulate_xy(P1, P2, hl["center"], hr["center"])
+    #         all_rows.append({
+    #             "hold_id": hid,
+    #             "x_mm": X[0],
+    #             "y_mm": X[1],
+    #             "z_mm": X[2],
+    #             "color": hl["class_name"]
+    #         })
+
+    #     # 누적 CSV 저장
+    #     save_holds_to_csv_cumulative(all_rows, CSV_GRIPS_PATH)
+
+    #     cv2.imshow("Stereo YOLO 3D", vis)
+    #     if cv2.waitKey(1) & 0xFF == 27:  # ESC
+    #         break
     while True:
         ok1, f1 = cap1.read(); ok2, f2 = cap2.read()
         if not (ok1 and ok2): break
@@ -295,46 +345,30 @@ def main():
         holdsL = extract_holds(Lr, model)
         holdsR = extract_holds(Rr, model)
 
-        # ---------------- 좌우 홀드 매칭 테스트 ----------------
+        # 각 hold에 frame_shape 추가 (mask 생성용)
         for h in holdsL: h["frame_shape"] = Lr.shape[:2]
         for h in holdsR: h["frame_shape"] = Rr.shape[:2]
 
+        # IOU 기반 매칭
         matches = match_holds_by_iou(holdsL, holdsR, iou_thresh=0.1)
+        
+        # 매칭 결과만 시각화
         vis_matches = visualize_matches_iou(Lr, Rr, matches)
         cv2.imshow("Matches_IOU", vis_matches)
-        # -------------------------------------------------------
 
-        # 좌/우 병합 및 인덱스 유지 (화면 표시용)
+        # 좌/우 병합 화면 표시
         merged_holds = merge_holds_by_center([holdsL, holdsR])
-
-        # 화면 표시
         vis = np.hstack([Lr, Rr])
         for h in merged_holds:
             cx, cy = h["center"]
             cv2.circle(vis, (cx, cy), 4, h["color"], -1)
             cv2.putText(vis, str(h["hold_index"]), (cx, cy-5),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-
-        # 3D 좌표 계산 후 누적 (IOU 매칭 기준)
-        for m in matches:
-            hl = m["L"]
-            hr = m["R"]
-            hid = hl.get("hold_index", hl.get("center"))  # hold_index 없으면 center로 임시 ID
-            X = triangulate_xy(P1, P2, hl["center"], hr["center"])
-            all_rows.append({
-                "hold_id": hid,
-                "x_mm": X[0],
-                "y_mm": X[1],
-                "z_mm": X[2],
-                "color": hl["class_name"]
-            })
-
-        # 누적 CSV 저장
-        save_holds_to_csv_cumulative(all_rows, CSV_GRIPS_PATH)
-
         cv2.imshow("Stereo YOLO 3D", vis)
+
         if cv2.waitKey(1) & 0xFF == 27:  # ESC
             break
+
 
     cap1.release(); cap2.release()
     cv2.destroyAllWindows()
