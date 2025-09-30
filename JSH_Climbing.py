@@ -309,41 +309,24 @@ def send_servo_angles(ctl, yaw_cmd, pitch_cmd):
         print(f"[Servo ERROR] {e}")
 
 # ---------- 장세환의 추가 코드 --------------
-def draw_epipolar_lines(img1, img2, pts1, pts2, F):
-    """ pts1: Nx2 좌표 (왼쪽 이미지 점들)
-        pts2: Nx2 좌표 (오른쪽 이미지 점들)
-        F: Fundamental matrix
+
+def test_triangulate(ptsL, ptsR, P1, P2):
     """
-    print(f"[Debug] pts1.shape={pts1.shape}, dtype={pts1.dtype}")
-    print(f"[Debug] pts2.shape={pts2.shape}, dtype={pts2.dtype}")
-    img1 = img1.copy()
-    img2 = img2.copy()
+    좌우 공통 포인트를 이용해서 3D 좌표를 계산하는 테스트 함수.
+    
+    ptsL, ptsR : Nx2 float32 좌표 (이미지 좌표)
+    P1, P2     : 3x4 스테레오 카메라 프로젝션 행렬
+    """
+    # cv2.triangulatePoints는 homogeneous 좌표 반환 (4xN)
+    pts4D = cv2.triangulatePoints(P1, P2, ptsL.T, ptsR.T)  # shape: 4xN
+    pts3D = pts4D[:3] / pts4D[3]  # 정규화: X = x/w, Y = y/w, Z = z/w
 
-    # 왼쪽 점 → 오른쪽 이미지에 라인
-    lines1 = cv2.computeCorrespondEpilines(pts2.reshape(-1,1,2), 2, F).reshape(-1,3)
+    pts3D = pts3D.T  # Nx3
+    for i, X in enumerate(pts3D):
+        print(f"Point {i}: X={X[0]:.2f} mm, Y={X[1]:.2f} mm, Z={X[2]:.2f} mm")
+    
+    return pts3D
 
-    for r,pt1,pt2 in zip(lines1, pts1, pts2):
-        color = tuple(np.random.randint(0,255,3).tolist())
-        x0,y0 = map(int, [0, -r[2]/r[1]])
-        x1,y1 = map(int, [img2.shape[1], -(r[2]+r[0]*img2.shape[1])/r[1]])
-        img2 = cv2.line(img2, (x0,y0), (x1,y1), color,1)
-        img1 = cv2.circle(img1, tuple(pt1.astype(int)),5,color,-1)
-        img2 = cv2.circle(img2, tuple(pt2.astype(int)),5,color,-1)
-
-    return img1, img2
-
-def draw_holds_on_image(img, holds, x_offset=0, filled_ids=set()):
-    img = img.copy()
-    for h in holds:
-        cnt_shifted = h["contour"] + np.array([[[x_offset,0]]], dtype=h["contour"].dtype)
-        if h["hold_index"] in filled_ids:
-            overlay = img.copy()
-            cv2.drawContours(overlay, [cnt_shifted], -1, h["color"], -1)
-            img = cv2.addWeighted(overlay, 0.45, img, 0.55, 0)
-        cv2.drawContours(img, [cnt_shifted], -1, h["color"], 2)
-        cx, cy = h["center"]
-        cv2.circle(img, (cx+x_offset, cy), 4, (255,255,255), -1)
-    return img
 # ---------- 장세환의 추가 코드 --------------
 # ---------- 메인 ----------
 
@@ -419,8 +402,8 @@ def main():
     # 좌우 수평 오차 계산 (Fundamental matrix 없이)
     y_errors = np.abs(ptsL[:,1] - ptsR[:,1])
     print(f"[Epipolar check] 평균 Y 오차: {np.mean(y_errors):.2f}px, 최대: {np.max(y_errors):.2f}px")
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+
+    pts3D = test_triangulate(ptsL, ptsR, P1, P2)
     
     # 3D/각도 계산
     matched_results = []
@@ -552,5 +535,6 @@ def main():
         except: pass
         try: ctl.close()
         except: pass
+
 if __name__ == "__main__":
     main()
