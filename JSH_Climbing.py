@@ -456,7 +456,16 @@ def main():
 
     def send_servo_angles(yaw_pwm, pitch_pwm):
         """yaw/pitch PWM 값을 아두이노로 전송"""
-        data = struct.pack('<HH', yaw_pwm, pitch_pwm)  # 2바이트씩 little-endian
+        # float → int 변환
+        yaw_pwm = int(round(yaw_pwm))
+        pitch_pwm = int(round(pitch_pwm))
+
+        # 서보 안전 범위 제한 (Arduino 기준 1000~2000us)
+        yaw_pwm   = max(1000, min(2000, yaw_pwm))
+        pitch_pwm = max(1000, min(2000, pitch_pwm))
+
+        # 2바이트씩 little-endian 전송
+        data = struct.pack('<HH', yaw_pwm, pitch_pwm)
         ser.write(data)
 
     # 스테레오 로드
