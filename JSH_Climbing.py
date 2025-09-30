@@ -459,6 +459,7 @@ def main():
         # 2바이트씩 little-endian 전송
         data = struct.pack('<HH', yaw_pwm, pitch_pwm)
         ser.write(data)
+        print(f"[Servo] Yaw_PWM={yaw_pwm}us, Pitch_PWM={pitch_pwm}us")
     
     # 스테레오 로드
     map1x, map1y, map2x, map2y, P1, P2, size, B, M = load_stereo(NPZ_PATH)
