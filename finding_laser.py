@@ -11,7 +11,7 @@
 import cv2, numpy as np, platform
 
 # ========= 설정 =========
-CAM0, CAM1 = 1, 2          # 카메라 인덱스
+CAM0, CAM1 = 0, 1          # 카메라 인덱스
 W, H = 1280, 720           # 해상도
 USE_ECC_ALIGN = True       # 전/후 미세 흔들림(translation) 정합
 BLUR = 0                   # 1픽셀 유지면 0, 약간 번지면 3
