@@ -365,14 +365,9 @@ def test_triangulate_and_draw(ptsL, ptsR, P1, P2, imgL, imgR):
     return pts3D, imgL_draw, imgR_draw
 
 def reprojection_error(ptsL, ptsR, pts3D, P1, P2):
-    """
-    3D 좌표를 다시 좌우 카메라로 투영하고, 원래 픽셀과 차이 계산
-    ptsL, ptsR : Nx2 좌표
-    pts3D      : Nx3 3D 좌표
-    P1, P2     : 3x4 스테레오 프로젝션 행렬
-    """
     errs_L = []
     errs_R = []
+    reproj_coords = []  # 추가
 
     for i in range(len(pts3D)):
         X = np.append(pts3D[i], 1)  # homogeneous
@@ -386,10 +381,12 @@ def reprojection_error(ptsL, ptsR, pts3D, P1, P2):
         errs_L.append(errL)
         errs_R.append(errR)
 
+        reproj_coords.append((proj_L[0], proj_L[1], proj_R[0], proj_R[1]))  # 저장
+
         print(f"Point {i}: errL={errL:.2f}px, errR={errR:.2f}px")
 
     print(f"[Summary] Avg error: Left={np.mean(errs_L):.2f}px, Right={np.mean(errs_R):.2f}px")
-    return errs_L, errs_R
+    return errs_L, errs_R, reproj_coords
 
 
 # ---------- 장세환의 추가 코드 --------------
@@ -470,7 +467,7 @@ def main():
     print(f"[Epipolar check] 평균 Y 오차: {np.mean(y_errors):.2f}px, 최대: {np.max(y_errors):.2f}px")
 
     pts3D = test_triangulate(ptsL, ptsR, P1, P2)
-    errs_L, errs_R = reprojection_error(ptsL, ptsR, pts3D, P1, P2)  # 여기서 한 번만
+    errs_L, errs_R, reproj_coords = reprojection_error(ptsL, ptsR, pts3D, P1, P2)
     print(f"errs_L is {errs_L}")
     print(f"errs_R is {errs_R}")
     
@@ -548,12 +545,26 @@ def main():
             
             # 3D 좌표 시각화 (좌/우 이미지에 원 그리기)
             for i, hid in enumerate(common_ids):
+                # 원래 좌/우 이미지 좌표 (YOLO로 검출된 홀드 중심)
                 cxL, cyL = ptsL[i].astype(int)
-                cxR, cyR = ptsR[i].astype(int) + W  # 우측 이미지는 x-offset 필요
-                cv2.circle(vis, (cxL, cyL), 5, (0, 0, 255), -1)  # 빨강: 좌
-                cv2.circle(vis, (cxR, cyR), 5, (0, 0, 255), -1)  # 빨강: 우
+                cxR, cyR = ptsR[i].astype(int)
+
+                # 우측 이미지 x-offset
+                cxR_vis = cxR + W
+
+                # 빨강: 원래 YOLO 중심
+                cv2.circle(vis, (cxL, cyL), 5, (0, 0, 255), -1)       # 좌측
+                cv2.circle(vis, (cxR_vis, cyR), 5, (0, 0, 255), -1)   # 우측
+
+                # 녹색: 재투영 좌표
+                pxL, pyL, pxR, pyR = reproj_coords[i]  # reprojection_error 또는 직접 계산
+                cv2.circle(vis, (int(pxL), int(pyL)), 6, (0, 255, 0), 2)       # 좌측
+                cv2.circle(vis, (int(pxR) + W, int(pyR)), 6, (0, 255, 0), 2)   # 우측
+
+                # ID 텍스트
                 cv2.putText(vis, f"{hid}", (cxL-10, cyL-10),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1, cv2.LINE_AA)
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1, cv2.LINE_AA)
+
 
             # 검출 홀드 그리기
             for side, holds in (("L", holdsL), ("R", holdsR)):
