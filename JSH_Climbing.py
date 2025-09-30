@@ -302,17 +302,15 @@ def imshow_scaled(win, img, maxw=None):
 def xoff_for(side, W, swap):
     return (W if swap else 0) if side=="L" else (0 if swap else W)
 
+# ---------- 장세환의 추가 코드 --------------
 import struct
 
-def send_servo_angles(yaw_pwm, pitch_pwm, ser):
-    yaw_pwm = int(round(yaw_pwm))
-    pitch_pwm = int(round(pitch_pwm))
-    data = struct.pack('<HH', yaw_pwm, pitch_pwm)  # 2바이트씩 little-endian
+def send_servo_angles(yaw_pwm, pitch_pwm):
+    yaw_pwm = int(yaw_pwm)
+    pitch_pwm = int(pitch_pwm)
+    data = struct.pack('<HH', yaw_pwm, pitch_pwm)
     ser.write(data)
     print(f"[Send] yaw_pwm={yaw_pwm}, pitch_pwm={pitch_pwm}")
-
-
-# ---------- 장세환의 추가 코드 --------------
 
 def test_triangulate(ptsL, ptsR, P1, P2):
     """
@@ -548,16 +546,14 @@ def main():
         # 1. 레이저 원점 기준으로 pitch, yaw 각도 계산
         pitch_deg, yaw_deg = point_to_motor_angles(point, O)
     
-        # 2. 각도를 PWM으로 변환
-        pitch_pwm = angle_to_pwm(pitch_deg)
-        yaw_pwm   = angle_to_pwm(yaw_deg)
+        pitch_pwm = angle_to_pwm(pitch, min_angle=-30, max_angle=30, min_pwm=1000, max_pwm=2000)
+        yaw_pwm   = angle_to_pwm(yaw,   min_angle=-30, max_angle=30, min_pwm=1000, max_pwm=2000)
+
         
         # 3. 값 확인
         print(f"Point {i}: Pitch={pitch_deg:.2f}° ({pitch_pwm}us), Yaw={yaw_deg:.2f}° ({yaw_pwm}us)")
         
-        # 4. 아두이노로 전송
         send_servo_angles(yaw_pwm, pitch_pwm)
-        
         # 서보가 목표 위치에 도달할 시간을 잠깐 기다릴 수도 있음
         time.sleep(0.5)
     
