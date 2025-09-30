@@ -303,14 +303,6 @@ def xoff_for(side, W, swap):
     return (W if swap else 0) if side=="L" else (0 if swap else W)
 
 # ---------- 장세환의 추가 코드 --------------
-import struct
-
-def send_servo_angles(yaw_pwm, pitch_pwm):
-    yaw_pwm = int(yaw_pwm)
-    pitch_pwm = int(pitch_pwm)
-    data = struct.pack('<HH', yaw_pwm, pitch_pwm)
-    ser.write(data)
-    print(f"[Send] yaw_pwm={yaw_pwm}, pitch_pwm={pitch_pwm}")
 
 def test_triangulate(ptsL, ptsR, P1, P2):
     """
@@ -466,7 +458,6 @@ def main():
         """yaw/pitch PWM 값을 아두이노로 전송"""
         data = struct.pack('<HH', yaw_pwm, pitch_pwm)  # 2바이트씩 little-endian
         ser.write(data)
-
 
     # 스테레오 로드
     map1x, map1y, map2x, map2y, P1, P2, size, B, M = load_stereo(NPZ_PATH)
