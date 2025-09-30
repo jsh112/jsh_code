@@ -69,7 +69,7 @@ def extract_holds_with_indices(frame_bgr, model, selected_class_name=None, mask_
                       "contour": contour, "center": (cx,cy), "conf": conf})
     return holds
 
-def match_holds(holdsL, holdsR, max_dist_px=20, row_tol=10):
+def match_holds(holdsL, holdsR, max_dist_px=30, row_tol=10):
     matched_pairs = []
     used_R = set()
     for Lh in holdsL:
@@ -95,6 +95,26 @@ def triangulate_xy(P1,P2,ptL,ptR):
     X = (Xh[:3]/Xh[3]).reshape(3)
     return X
 
+def match_holds(holdsL, holdsR, max_dist_px=20, row_tol=10):
+    matched_pairs = []
+    used_R = set()
+    for Lh in holdsL:
+        best_R = None
+        best_dist = max_dist_px
+        for Rh in holdsR:
+            if id(Rh) in used_R:
+                continue  # 이미 매칭된 R 제외
+            if abs(Lh["center"][1] - Rh["center"][1]) > row_tol:
+                continue  # 같은 row가 아니면 제외
+            dist = np.linalg.norm(np.array(Lh["center"]) - np.array(Rh["center"]))
+            if dist < best_dist:
+                best_dist = dist
+                best_R = Rh
+        if best_R is not None:
+            matched_pairs.append((Lh, best_R))
+            used_R.add(id(best_R))
+    return matched_pairs
+
 # ================== 메인 ==================
 def main():
     if not Path(NPZ_PATH).exists() or not Path(MODEL_PATH).exists():
@@ -104,6 +124,9 @@ def main():
     W,H = size
     cap1, cap2 = open_cams(CAM1_INDEX,CAM2_INDEX,size)
     model = YOLO(str(MODEL_PATH))
+
+    MAX_DIST_PX = 20
+    ROW_TOL_Y = 10
 
     while True:
         ok1,f1 = cap1.read(); ok2,f2 = cap2.read()
@@ -115,7 +138,11 @@ def main():
         holdsL = extract_holds_with_indices(Lr, model, "green")
         holdsR = extract_holds_with_indices(Rr, model, "green")
 
+        print("L holds:", [h["center"] for h in holdsL])
+        print("R holds:", [h["center"] for h in holdsR])
+
         matched_pairs = match_holds(holdsL, holdsR, MAX_DIST_PX, ROW_TOL_Y)
+        print("Matched:", len(matched_pairs))
 
         # 3D 계산 & 화면 표시
         for Lh,Rh in matched_pairs:
