@@ -92,8 +92,7 @@ except Exception:
     HAS_SERVO = False
     class DualServoController:
         def __init__(self, *a, **k): print("[Servo] (stub) controller unavailable")
-        def set_angles(self, pitch=None, yaw=None): 
-            print(f"[Servo] (stub) set_angles: P={pitch}, Y={yaw}")
+        def set_angles(self, pitch=None, yaw=None): print(f"[Servo] (stub) set_angles: P={pitch}, Y={yaw}")
         def center(self): print("[Servo] (stub) center")
         def query(self): print("[Servo] (stub) query"); return ""
         def laser_on(self): print("[Servo] (stub) laser_on")
@@ -412,19 +411,19 @@ def main():
         print(f"  {a_id}->{b_id}: Δyaw={dyaw:+.2f}°, Δpitch={dpitch:+.2f}°, angle={d3d:.2f}°")
 
     # ===== Servo 초기화 & 초기 조준 =====
-    ctl = DualServoController() if not HAS_SERVO else DualServoController(args.port, args.baud)
+    # ctl = DualServoController() if not HAS_SERVO else DualServoController(args.port, args.baud)
     current_target_id = route_ids[0]
     mr0 = by_id[current_target_id]
     yaw_cmd0, pitch_cmd0 = to_servo_cmd(mr0["yaw_deg"], mr0["pitch_deg"])
     cur_yaw, cur_pitch = yaw_cmd0, pitch_cmd0
-    ctl.set_angles(cur_pitch, cur_yaw)
+    # ctl.set_angles(cur_pitch, cur_yaw)
     auto_advance_enabled = True
 
     # ==== MediaPipe Pose ====
-    pose = PoseTracker(min_detection_confidence=0.5, model_complexity=1)
-    touch = TouchCounter(threshold_frames=TOUCH_THRESHOLD, cooldown_sec=ADV_COOLDOWN)
+    #pose = PoseTracker(min_detection_confidence=0.5, model_complexity=1)
+    #touch = TouchCounter(threshold_frames=TOUCH_THRESHOLD, cooldown_sec=ADV_COOLDOWN)
     filled_ids = set()
-    blocked_state = {}
+    #blocked_state = {}
 
     # 화면
     cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
@@ -462,30 +461,30 @@ def main():
                     cv2.putText(vis, tag, (cx+xoff-10, cy+26),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, h["color"], 2, cv2.LINE_AA)
 
-            # MediaPipe
-            coords = pose.process(Lr)
-            draw_pose_points(vis, coords, offset_x=0)
+            # # MediaPipe
+            # coords = pose.process(Lr)
+            # draw_pose_points(vis, coords, offset_x=0)
 
-            # 터치 판정 & 자동 진행
-            if coords and (current_target_id in idxL):
-                tid = current_target_id
-                hold = idxL[tid]
-                triggered, parts = touch.check(hold["contour"], coords, tid, now=time.time())
-                for name, (x, y) in coords.items():
-                    key = (name, tid)
-                    inside = cv2.pointPolygonTest(hold["contour"], (x, y), False) >= 0
-                    if inside and name in pose.success_parts and tid not in filled_ids:
-                        filled_ids.add(tid)
-                        now_t = time.time()
-                        if tid in delta_from_id and (now_t - last_advanced_time) > ADV_COOLDOWN:
-                            dyaw, dpitch = delta_from_id[tid]
-                            target_yaw   = cur_yaw - dyaw
-                            target_pitch = cur_pitch + dpitch
-                            send_servo_angles(ctl, target_yaw, target_pitch)
-                            cur_yaw, cur_pitch = target_yaw, target_pitch
-                            current_target_id = next_id_map[tid]
-                            last_advanced_time = now_t
-                            break
+            # # 터치 판정 & 자동 진행
+            # if coords and (current_target_id in idxL):
+            #     tid = current_target_id
+            #     hold = idxL[tid]
+            #     triggered, parts = touch.check(hold["contour"], coords, tid, now=time.time())
+            #     for name, (x, y) in coords.items():
+            #         key = (name, tid)
+            #         inside = cv2.pointPolygonTest(hold["contour"], (x, y), False) >= 0
+            #         if inside and name in pose.success_parts and tid not in filled_ids:
+            #             filled_ids.add(tid)
+            #             now_t = time.time()
+            #             if tid in delta_from_id and (now_t - last_advanced_time) > ADV_COOLDOWN:
+            #                 dyaw, dpitch = delta_from_id[tid]
+            #                 target_yaw   = cur_yaw - dyaw
+            #                 target_pitch = cur_pitch + dpitch
+            #                 send_servo_angles(ctl, target_yaw, target_pitch)
+            #                 cur_yaw, cur_pitch = target_yaw, target_pitch
+            #                 current_target_id = next_id_map[tid]
+            #                 last_advanced_time = now_t
+            #                 break
 
             # FPS
             t_now = time.time()
@@ -500,9 +499,9 @@ def main():
     finally:
         cap1.release(); cap2.release()
         cv2.destroyAllWindows()
-        try: pose.close()
-        except: pass
-        try: ctl.close()
-        except: pass
+        #try: pose.close()
+        #except: pass
+        #try: ctl.close()
+        #except: pass
 if __name__ == "__main__":
     main()
