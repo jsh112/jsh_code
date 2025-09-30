@@ -92,10 +92,6 @@ def rectify(frame, mx, my, size):
         frame = cv2.resize(frame, (W, H))
     return cv2.remap(frame, mx, my, cv2.INTER_LINEAR)
 
-# ====== YOLO 홀드 검출 ======
-COLOR_MAP = {'Hold_Red':(0,0,255),'Hold_Orange':(0,165,255),'Hold_Yellow':(0,255,255),'Hold_Green':(0,255,0),
-             'Hold_Blue':(255,0,0),'Hold_Purple':(204,50,153)}
-
 def extract_holds(frame, model, mask_thresh=0.7, row_tol=50):
     res = model(frame)[0]
     holds = []
@@ -152,15 +148,41 @@ def triangulate_xy(P1,P2,ptL,ptR):
     X = (Xh[:3]/Xh[3]).reshape(3)
     return X
 
+def save_holds_3d_to_csv(holdsL, holdsR, P1, P2, csv_path):
+    """좌/우 홀드 매칭 후 3D 좌표 계산하고 CSV 저장"""
+    rows = []
+    for hL in holdsL:
+        hid = hL["hold_index"]
+        hR = next((x for x in holdsR if x["hold_index"] == hid), None)
+        if hR:
+            X = triangulate_xy(P1, P2, hL["center"], hR["center"])
+            row = {
+                "hold_id": hid,
+                "x_mm": X[0],
+                "y_mm": X[1],
+                "z_mm": X[2],
+                "color": hL["class_name"]
+            }
+            rows.append(row)
+
+    # CSV 저장
+    fieldnames = ["hold_id", "x_mm", "y_mm", "z_mm", "color"]
+    with open(csv_path, mode="w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+    return rows
+
 # ====== 메인 ======
 def main():
+    # 카메라 관련
     for p in (NPZ_PATH, MODEL_PATH):
         if not Path(p).exists(): raise FileNotFoundError(f"{p} 없음")
     map1x,map1y,map2x,map2y,P1,P2,size = load_stereo(NPZ_PATH)
     W,H = size
     cap1,cap2 = open_cams(CAM1_INDEX,CAM2_INDEX,size)
     model = YOLO(str(MODEL_PATH))
-
     cv2.namedWindow("Stereo YOLO 3D", cv2.WINDOW_NORMAL)
 
     while True:
@@ -181,8 +203,6 @@ def main():
                 cv2.drawContours(vis,[cnt_shifted],-1,h["color"],2)
                 cx,cy = h["center"]
                 cv2.circle(vis,(cx+xoff,cy),4,(255,255,255),-1)
-                # cv2.putText(vis,f"ID:{h['hold_index']}",(cx+xoff-10,cy+20),
-                #            cv2.FONT_HERSHEY_SIMPLEX,0.5,h["color"],2)
 
         # 3D 좌표 (매칭된 홀드 인덱스 기준)
         for hL in holdsL:
@@ -190,8 +210,7 @@ def main():
             hR = next((x for x in holdsR if x["hold_index"]==hid),None)
             if hR:
                 X = triangulate_xy(P1,P2,hL["center"],hR["center"])
-                txt = f"ID{hid}  X=({X[0]:.1f},{X[1]:.1f},{X[2]:.1f}) mm"
-                # cv2.putText(vis,txt,(10,30+20*hid),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,255,0),1)
+                print(f"ID {hid}  X={X[0]:.1f}, Y={X[1]:.1f}, Z={X[2]:.1f} mm  Color={hL['class_name']}")
 
         cv2.imshow("Stereo YOLO 3D",vis)
         k = cv2.waitKey(1) & 0xFF
