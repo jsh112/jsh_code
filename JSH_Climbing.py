@@ -457,7 +457,7 @@ def main():
         pitch_pwm = angle_to_pwm(pitch_angle, min_angle=-15, max_angle=15, min_pwm=1000, max_pwm=2000)
 
         # 2바이트씩 little-endian 전송
-        data = struct.pack('<HH', yaw_pwm, pitch_pwm)
+        data = yaw_pwm.to_bytes(2, 'little') + pitch_pwm.to_bytes(2, 'little')
         ser.write(data)
         print(f"[Servo] Yaw_PWM={yaw_pwm}us, Pitch_PWM={pitch_pwm}us")
     
