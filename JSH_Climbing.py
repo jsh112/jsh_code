@@ -331,7 +331,7 @@ def main():
 
     # ================= 색상 필터 선택 =================
     # 하드코딩 예: 전체 표시
-    selected_class_name  = None     
+    selected_class_name  = 'Hold_Green'     
     selected_color_label = "all"
     csv_label = _sanitize_label(selected_color_label)
     print(f"[Info] Color filter: {selected_color_label}")
