@@ -318,8 +318,7 @@ def draw_epipolar_lines(img1, img2, pts1, pts2, F):
     img2 = img2.copy()
 
     # 왼쪽 점 → 오른쪽 이미지에 라인
-    lines1 = cv2.computeCorrespondEpilines(pts2.reshape(-1,1,2), 2, F)
-    lines1 = lines1.reshape(-1,3)
+    lines1 = cv2.computeCorrespondEpilines(pts2.reshape(-1,1,2), 2, F).reshape(-1,3)
 
     for r,pt1,pt2 in zip(lines1, pts1, pts2):
         color = tuple(np.random.randint(0,255,3).tolist())
