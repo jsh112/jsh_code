@@ -364,6 +364,34 @@ def test_triangulate_and_draw(ptsL, ptsR, P1, P2, imgL, imgR):
 
     return pts3D, imgL_draw, imgR_draw
 
+def reprojection_error(ptsL, ptsR, pts3D, P1, P2):
+    """
+    3D 좌표를 다시 좌우 카메라로 투영하고, 원래 픽셀과 차이 계산
+    ptsL, ptsR : Nx2 좌표
+    pts3D      : Nx3 3D 좌표
+    P1, P2     : 3x4 스테레오 프로젝션 행렬
+    """
+    errs_L = []
+    errs_R = []
+
+    for i in range(len(pts3D)):
+        X = np.append(pts3D[i], 1)  # homogeneous
+        proj_L = P1 @ X
+        proj_L /= proj_L[2]
+        proj_R = P2 @ X
+        proj_R /= proj_R[2]
+
+        errL = np.linalg.norm(proj_L[:2] - ptsL[i])
+        errR = np.linalg.norm(proj_R[:2] - ptsR[i])
+        errs_L.append(errL)
+        errs_R.append(errR)
+
+        print(f"Point {i}: errL={errL:.2f}px, errR={errR:.2f}px")
+
+    print(f"[Summary] Avg error: Left={np.mean(errs_L):.2f}px, Right={np.mean(errs_R):.2f}px")
+    return errs_L, errs_R
+
+
 # ---------- 장세환의 추가 코드 --------------
 # ---------- 메인 ----------
 
@@ -442,6 +470,9 @@ def main():
     print(f"[Epipolar check] 평균 Y 오차: {np.mean(y_errors):.2f}px, 최대: {np.max(y_errors):.2f}px")
 
     pts3D = test_triangulate(ptsL, ptsR, P1, P2)
+    errs_L, errs_R = reprojection_error(ptsL, ptsR, pts3D, P1, P2)  # 여기서 한 번만
+    print(f"errs_L is {errs_L}")
+    print(f"errs_R is {errs_R}")
     
     # 3D/각도 계산
     matched_results = []
@@ -585,6 +616,228 @@ def main():
         except: pass
         try: print("hi")# ctl.close()
         except: pass
+
+# def main():
+#     # 경로 검증
+#     for p in (NPZ_PATH, MODEL_PATH):
+#         if not Path(p).exists():
+#             raise FileNotFoundError(f"파일을 찾을 수 없습니다: {p}")
+
+#     # 스테레오 로드
+#     map1x, map1y, map2x, map2y, P1, P2, size, B, M = load_stereo(NPZ_PATH)
+#     W, H = size
+#     print(f"[Info] image_size={(W,H)}, baseline~{B:.2f} mm")
+
+#     # 레이저 원점 O (LEFT 기준)
+#     L = np.array([0.0, 0.0, 0.0], dtype=np.float64)
+#     dx = -LASER_OFFSET_CM_LEFT * 10.0
+#     dy = (-1.0 if Y_UP_IS_NEGATIVE else 1.0) * LASER_OFFSET_CM_UP * 10.0
+#     dz = LASER_OFFSET_CM_FWD * 10.0
+#     O  = L + np.array([dx, dy, dz], dtype=np.float64)
+#     print(f"[Laser] Origin O (mm, LEFT-based) = {O}")
+
+#     # ================= 색상 필터 선택 =================
+#     # 하드코딩 예: 전체 표시
+#     selected_class_name  = 'Hold_Green'     
+#     selected_color_label = "all"
+#     csv_label = _sanitize_label(selected_color_label)
+#     print(f"[Info] Color filter: {selected_color_label}")
+
+#     # 카메라 & 모델
+#     cap1, cap2 = open_cams(CAM1_INDEX, CAM2_INDEX, size)
+#     model = YOLO(str(MODEL_PATH))
+
+#     # ====== 초기 10프레임: YOLO seg & merge ======
+#     print(f"[Init] First 3 frames: YOLO seg & merge ...")
+#     L_sets, R_sets = [], []
+#     for _ in range(2):  # 워밍업
+#         cap1.read(); cap2.read()
+
+#     for k in range(3):
+#         ok1, f1 = cap1.read(); ok2, f2 = cap2.read()
+#         if not (ok1 and ok2):
+#             cap1.release(); cap2.release()
+#             raise SystemExit("초기 프레임 캡쳐 실패")
+#         Lr_k = rectify(f1, map1x, map1y, size)
+#         Rr_k = rectify(f2, map2x, map2y, size)
+#         holdsL_k = extract_holds_with_indices(Lr_k, model, selected_class_name, THRESH_MASK, ROW_TOL_Y)
+#         holdsR_k = extract_holds_with_indices(Rr_k, model, selected_class_name, THRESH_MASK, ROW_TOL_Y)
+#         L_sets.append(holdsL_k); R_sets.append(holdsR_k)
+#         print(f"  - frame {k+1}/3: L={len(holdsL_k)}  R={len(holdsR_k)}")
+
+#     holdsL = assign_indices(merge_holds_by_center(L_sets, 18), ROW_TOL_Y)
+#     holdsR = assign_indices(merge_holds_by_center(R_sets, 18), ROW_TOL_Y)
+#     if not holdsL or not holdsR:
+#         cap1.release(); cap2.release()
+#         print("[Warn] 왼/오 프레임에서 홀드가 검출되지 않았습니다.")
+#         return
+
+#     # 공통 ID
+#     idxL = {h["hold_index"]: h for h in holdsL}
+#     idxR = {h["hold_index"]: h for h in holdsR}
+#     common_ids = sorted(set(idxL.keys()) & set(idxR.keys()))
+#     if not common_ids:
+#         print("[Warn] 좌/우 공통 hold_index가 없습니다.")
+#         return
+#     print(f"[Info] 공통 홀드 개수: {len(common_ids)}")
+
+#     # 1. 좌표 추출
+#     ptsL = np.array([idxL[hid]["center"] for hid in common_ids], dtype=np.float32)
+#     ptsR = np.array([idxR[hid]["center"] for hid in common_ids], dtype=np.float32)
+#     print(f"ptsL is {ptsL}")
+#     print(f"ptsR is {ptsR}")
+#     # 2. Fundamental matrix 계산 (테스트용)
+#     # 좌우 수평 오차 계산 (Fundamental matrix 없이)
+#     y_errors = np.abs(ptsL[:,1] - ptsR[:,1])
+#     print(f"[Epipolar check] 평균 Y 오차: {np.mean(y_errors):.2f}px, 최대: {np.max(y_errors):.2f}px")
+
+#     pts3D = test_triangulate(ptsL, ptsR, P1, P2)
+#     errs_L, errs_R = reprojection_error(ptsL, ptsR, pts3D, P1, P2)  # 여기서 한 번만
+#     print(f"errs_L is {errs_L}")
+#     print(f"errs_R is {errs_R}")
+    
+#     # 3D/각도 계산
+#     matched_results = []
+#     for hid in common_ids:
+#         Lh = idxL[hid]; Rh = idxR[hid]
+#         X = triangulate_xy(P1, P2, Lh["center"], Rh["center"])
+#         d_left  = float(np.linalg.norm(X - L))
+#         d_line  = float(np.hypot(X[1], X[2]))
+#         yaw_deg, pitch_deg = yaw_pitch_from_X(X, O, Y_UP_IS_NEGATIVE)
+#         matched_results.append({
+#             "hid": hid, "color": Lh["color"],
+#             "X": X, "d_left": d_left, "d_line": d_line,
+#             "yaw_deg": yaw_deg, "pitch_deg": pitch_deg,
+#         })
+
+#     # ===== Delta 테이블 (순서=hold_index 순) =====
+#     by_id  = {mr["hid"]: mr for mr in matched_results}
+#     route_ids = sorted(by_id.keys())
+#     next_id_map   = {}
+#     delta_from_id = {}
+#     angle_deltas  = []
+
+#     for i in range(len(route_ids)-1):
+#         a_id, b_id = route_ids[i], route_ids[i+1]
+#         a, b = by_id[a_id], by_id[b_id]
+#         dyaw   = wrap_deg(b["yaw_deg"]   - a["yaw_deg"])
+#         dpitch = wrap_deg(b["pitch_deg"] - a["pitch_deg"])
+#         v1 = a["X"] - O; v2 = b["X"] - O
+#         d3d = angle_between(v1, v2)
+#         angle_deltas.append((a_id, b_id, dyaw, dpitch, d3d))
+#         next_id_map[a_id]   = b_id
+#         delta_from_id[a_id] = (dyaw, dpitch)
+
+#     print("[ΔAngles] (hold_index order):")
+#     for a_id, b_id, dyaw, dpitch, d3d in angle_deltas:
+#         print(f"  {a_id}->{b_id}: Δyaw={dyaw:+.2f}°, Δpitch={dpitch:+.2f}°, angle={d3d:.2f}°")
+    
+
+#     # ===== Servo 초기화 & 초기 조준 =====
+#     # ctl = DualServoController() if not HAS_SERVO else DualServoController(args.port, args.baud)
+#     current_target_id = route_ids[0]
+#     mr0 = by_id[current_target_id]
+#     yaw_cmd0, pitch_cmd0 = to_servo_cmd(mr0["yaw_deg"], mr0["pitch_deg"])
+#     cur_yaw, cur_pitch = yaw_cmd0, pitch_cmd0
+#     # ctl.set_angles(cur_pitch, cur_yaw)
+#     auto_advance_enabled = True
+
+#     # ==== MediaPipe Pose ====
+#     pose = PoseTracker(min_detection_confidence=0.5, model_complexity=1)
+#     touch = TouchCounter(threshold_frames=TOUCH_THRESHOLD, cooldown_sec=ADV_COOLDOWN)
+#     filled_ids = set()
+#     blocked_state = {}
+
+#     # 화면
+#     cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
+#     cv2.resizeWindow(WINDOW_NAME, W, H)
+#     t_prev = time.time()
+#     last_advanced_time = 0.0
+
+#     try:
+#         while True:
+#             ok1, f1 = cap1.read(); ok2, f2 = cap2.read()
+#             if not (ok1 and ok2):
+#                 print("[Warn] 프레임 캡쳐 실패"); break
+
+#             Lr = rectify(f1, map1x, map1y, size)
+#             Rr = rectify(f2, map2x, map2y, size)
+#             vis = np.hstack([Lr, Rr])
+
+#             if SHOW_GRID: 
+#                 draw_grid(vis[:, :W]); 
+#                 draw_grid(vis[:, W:])
+            
+#             # 3D 좌표 시각화 (좌/우 이미지에 원 그리기)
+#             for i, hid in enumerate(common_ids):
+#                 cxL, cyL = ptsL[i].astype(int)
+#                 cxR, cyR = ptsR[i].astype(int) + W  # 우측 이미지는 x-offset 필요
+#                 cv2.circle(vis, (cxL, cyL), 5, (0, 0, 255), -1)  # 빨강: 좌
+#                 cv2.circle(vis, (cxR, cyR), 5, (0, 0, 255), -1)  # 빨강: 우
+#                 cv2.putText(vis, f"{hid}", (cxL-10, cyL-10),
+#                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1, cv2.LINE_AA)
+
+#             # 검출 홀드 그리기
+#             for side, holds in (("L", holdsL), ("R", holdsR)):
+#                 xoff = xoff_for(side, W, SWAP_DISPLAY)
+#                 for h in holds:
+#                     cnt_shifted = h["contour"] + np.array([[[xoff,0]]], dtype=h["contour"].dtype)
+#                     if h["hold_index"] in filled_ids:
+#                         overlay = vis.copy()
+#                         cv2.drawContours(overlay, [cnt_shifted], -1, h["color"], -1)
+#                         vis = cv2.addWeighted(overlay, 0.45, vis, 0.55, 0)
+#                     cv2.drawContours(vis, [cnt_shifted], -1, h["color"], 2)
+#                     cx, cy = h["center"]
+#                     cv2.circle(vis, (cx+xoff, cy), 4, (255,255,255), -1)
+#                     tag = f"ID:{h['hold_index']}"
+#                     if h["hold_index"] == current_target_id: tag = "[TARGET] " + tag
+#                     cv2.putText(vis, tag, (cx+xoff-10, cy+26),
+#                                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,0,0), 3, cv2.LINE_AA)
+#                     cv2.putText(vis, tag, (cx+xoff-10, cy+26),
+#                                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, h["color"], 2, cv2.LINE_AA)
+
+#             # MediaPipe
+#             coords = pose.process(Lr)
+#             draw_pose_points(vis, coords, offset_x=0)
+
+#             # 터치 판정 & 자동 진행
+#             if coords and (current_target_id in idxL):
+#                 tid = current_target_id
+#                 hold = idxL[tid]
+#                 triggered, parts = touch.check(hold["contour"], coords, tid, now=time.time())
+#                 for name, (x, y) in coords.items():
+#                     key = (name, tid)
+#                     inside = cv2.pointPolygonTest(hold["contour"], (x, y), False) >= 0
+#                     if inside and name in pose.success_parts and tid not in filled_ids:
+#                         filled_ids.add(tid)
+#                         now_t = time.time()
+#                         if tid in delta_from_id and (now_t - last_advanced_time) > ADV_COOLDOWN:
+#                             dyaw, dpitch = delta_from_id[tid]
+#                             target_yaw   = cur_yaw - dyaw
+#                             target_pitch = cur_pitch + dpitch
+#                             # send_servo_angles(ctl, target_yaw, target_pitch)
+#                             cur_yaw, cur_pitch = target_yaw, target_pitch
+#                             current_target_id = next_id_map[tid]
+#                             last_advanced_time = now_t
+#                             break
+
+#             # FPS
+#             t_now = time.time()
+#             fps = 1.0 / max(t_now - t_prev, 1e-6); t_prev = t_now
+#             cv2.putText(vis, f"FPS: {fps:.1f} (Auto={'ON' if auto_advance_enabled else 'OFF'})",
+#                         (10, H-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,255,255), 1, cv2.LINE_AA)
+
+#             cv2.imshow(WINDOW_NAME, vis)
+#             if cv2.waitKey(1) & 0xFF == ord('q'):
+#                 break
+
+#     finally:
+#         cap1.release(); cap2.release()
+#         cv2.destroyAllWindows()
+#         try: pose.close()
+#         except: pass
+#         try: print("hi")# ctl.close()
+#         except: pass
 
 if __name__ == "__main__":
     main()
