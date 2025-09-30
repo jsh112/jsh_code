@@ -129,6 +129,77 @@ def save_holds_to_csv_cumulative(all_rows, csv_path="grip_records.csv"):
     except Exception as e:
         print(f"CSV 저장 실패: {e}")
 
+# ------------------ 1. 좌우 홀드 매칭 ------------------
+def match_holds_by_proximity(holdsL, holdsR, max_dist_px=20):
+    """
+    좌/우 홀드를 픽셀 거리 기준으로 매칭
+    - holdsL, holdsR : extract_holds() 결과
+    - max_dist_px : 허용 거리
+    """
+    matches = []
+    for hl in holdsL:
+        cxL, cyL = hl["center"]
+        # R에서 가장 가까운 점 찾기
+        best_match = None
+        min_dist = max_dist_px
+        for hr in holdsR:
+            cxR, cyR = hr["center"]
+            dist = np.hypot(cxL - cxR, cyL - cyR)
+            if dist < min_dist:
+                min_dist = dist
+                best_match = hr
+        if best_match is not None:
+            matches.append({
+                "L": hl,
+                "R": best_match,
+                "dist_px": min_dist
+            })
+    return matches
+
+# ------------------ 2. 매칭 결과 시각화 ------------------
+def visualize_matches(frameL, frameR, matches):
+    """
+    좌우 이미지에 매칭 점 표시
+    - frameL, frameR : 좌/우 이미지
+    - matches : match_holds_by_proximity 결과
+    """
+    vis = np.hstack([frameL.copy(), frameR.copy()])
+    W = frameL.shape[1]
+
+    for m in matches:
+        cxL, cyL = m["L"]["center"]
+        cxR, cyR = m["R"]["center"]
+        color = m["L"].get("color", (255,255,255))
+        
+        # 좌측 표시
+        cv2.circle(vis, (cxL, cyL), 5, color, -1)
+        cv2.putText(vis, "L", (cxL, cyL-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+
+        # 우측 표시 (가로 offset)
+        cv2.circle(vis, (cxR+W, cyR), 5, color, -1)
+        cv2.putText(vis, "R", (cxR+W, cyR-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+
+        # 매칭 선
+        cv2.line(vis, (cxL, cyL), (cxR+W, cyR), color, 1)
+
+    return vis
+
+# ------------------ 3. 매칭 실패 확인 ------------------
+def report_unmatched_holds(holdsL, holdsR, matches):
+    """
+    매칭되지 않은 홀드 확인
+    """
+    matched_L = {m["L"]["center"] for m in matches}
+    matched_R = {m["R"]["center"] for m in matches}
+
+    unmatched_L = [h for h in holdsL if h["center"] not in matched_L]
+    unmatched_R = [h for h in holdsR if h["center"] not in matched_R]
+
+    print(f"좌측 미매칭 홀드: {len(unmatched_L)}개")
+    print(f"우측 미매칭 홀드: {len(unmatched_R)}개")
+    return unmatched_L, unmatched_R
+
+
 # ================== 메인 ==================
 def main():
     if not Path(NPZ_PATH).exists() or not Path(MODEL_PATH).exists():
@@ -151,6 +222,13 @@ def main():
 
         holdsL = extract_holds(Lr, model)
         holdsR = extract_holds(Rr, model)
+
+        # ---------------- 좌우 홀드 매칭 테스트 ----------------
+        matches = match_holds_by_proximity(holdsL, holdsR)
+        vis_matches = visualize_matches(Lr, Rr, matches)
+        cv2.imshow("Matches", vis_matches)
+        unmatched_L, unmatched_R = report_unmatched_holds(holdsL, holdsR, matches)
+        # -------------------------------------------------------
 
         # 좌/우 병합 및 인덱스 유지
         merged_holds = merge_holds_by_center([holdsL, holdsR])
