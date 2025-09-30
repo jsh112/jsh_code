@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 # ==== 스테레오 캘리브레이션/맵 불러오기 ====
-NPZ_PATH = "/home/jojang/Desktop/climbing/stereo_params_scaled.npz"
+NPZ_PATH = "/home/jsh/Desktop/JSH_CODE/jsh_code/stereo_params_scaled.npz"
 
 def load_stereo(npz_path):
     S = np.load(npz_path, allow_pickle=True)
