@@ -314,6 +314,8 @@ def draw_epipolar_lines(img1, img2, pts1, pts2, F):
         pts2: Nx2 좌표 (오른쪽 이미지 점들)
         F: Fundamental matrix
     """
+    print(f"[Debug] pts1.shape={pts1.shape}, dtype={pts1.dtype}")
+    print(f"[Debug] pts2.shape={pts2.shape}, dtype={pts2.dtype}")
     img1 = img1.copy()
     img2 = img2.copy()
 
