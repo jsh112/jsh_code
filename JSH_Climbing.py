@@ -327,6 +327,43 @@ def test_triangulate(ptsL, ptsR, P1, P2):
     
     return pts3D
 
+def test_triangulate_and_draw(ptsL, ptsR, P1, P2, imgL, imgR):
+    """
+    좌우 공통 포인트를 이용해 3D 좌표 계산 후, 좌/우 이미지 위에 표시.
+    
+    ptsL, ptsR : Nx2 float32 좌표 (이미지 좌표)
+    P1, P2     : 3x4 스테레오 카메라 프로젝션 행렬
+    imgL, imgR : 좌/우 이미지 (BGR)
+    """
+    # 3D 좌표 계산
+    pts4D = cv2.triangulatePoints(P1, P2, ptsL.T, ptsR.T)  # shape: 4xN
+    pts3D = (pts4D[:3] / pts4D[3]).T  # Nx3
+
+    # 좌측 이미지에 표시
+    imgL_draw = imgL.copy()
+    imgR_draw = imgR.copy()
+
+    for i, X in enumerate(pts3D):
+        print(f"Point {i}: X={X[0]:.2f} mm, Y={X[1]:.2f} mm, Z={X[2]:.2f} mm")
+        color = tuple(np.random.randint(0, 255, 3).tolist())
+
+        # 좌측 이미지
+        ptL = tuple(ptsL[i].astype(int))
+        cv2.circle(imgL_draw, ptL, 5, color, -1)
+        cv2.putText(imgL_draw, f"{i}", (ptL[0]+5, ptL[1]-5),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
+
+        # 우측 이미지: 3D -> 이미지 평면 투영
+        X_h = np.hstack([X, 1.0])  # homogeneous
+        proj = P2 @ X_h  # 3x1
+        proj /= proj[2]
+        ptR = tuple(proj[:2].astype(int))
+        cv2.circle(imgR_draw, ptR, 5, color, -1)
+        cv2.putText(imgR_draw, f"{i}", (ptR[0]+5, ptR[1]-5),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
+
+    return pts3D, imgL_draw, imgR_draw
+
 # ---------- 장세환의 추가 코드 --------------
 # ---------- 메인 ----------
 
@@ -472,7 +509,19 @@ def main():
             Lr = rectify(f1, map1x, map1y, size)
             Rr = rectify(f2, map2x, map2y, size)
             vis = np.hstack([Lr, Rr])
-            if SHOW_GRID: draw_grid(vis[:, :W]); draw_grid(vis[:, W:])
+
+            if SHOW_GRID: 
+                draw_grid(vis[:, :W]); 
+                draw_grid(vis[:, W:])
+            
+            # 3D 좌표 시각화 (좌/우 이미지에 원 그리기)
+            for i, hid in enumerate(common_ids):
+                cxL, cyL = ptsL[i].astype(int)
+                cxR, cyR = ptsR[i].astype(int) + W  # 우측 이미지는 x-offset 필요
+                cv2.circle(vis, (cxL, cyL), 5, (0, 0, 255), -1)  # 빨강: 좌
+                cv2.circle(vis, (cxR, cyR), 5, (0, 0, 255), -1)  # 빨강: 우
+                cv2.putText(vis, f"{hid}", (cxL-10, cyL-10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1, cv2.LINE_AA)
 
             # 검출 홀드 그리기
             for side, holds in (("L", holdsL), ("R", holdsR)):
