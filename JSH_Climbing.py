@@ -434,7 +434,8 @@ def main():
     # 1. 좌표 추출
     ptsL = np.array([idxL[hid]["center"] for hid in common_ids], dtype=np.float32)
     ptsR = np.array([idxR[hid]["center"] for hid in common_ids], dtype=np.float32)
-
+    print(f"ptsL is {ptsL}")
+    print(f"ptsR is {ptsR}")
     # 2. Fundamental matrix 계산 (테스트용)
     # 좌우 수평 오차 계산 (Fundamental matrix 없이)
     y_errors = np.abs(ptsL[:,1] - ptsR[:,1])
@@ -480,7 +481,7 @@ def main():
     
 
     # ===== Servo 초기화 & 초기 조준 =====
-    ctl = DualServoController() if not HAS_SERVO else DualServoController(args.port, args.baud)
+    # ctl = DualServoController() if not HAS_SERVO else DualServoController(args.port, args.baud)
     current_target_id = route_ids[0]
     mr0 = by_id[current_target_id]
     yaw_cmd0, pitch_cmd0 = to_servo_cmd(mr0["yaw_deg"], mr0["pitch_deg"])
@@ -561,7 +562,7 @@ def main():
                             dyaw, dpitch = delta_from_id[tid]
                             target_yaw   = cur_yaw - dyaw
                             target_pitch = cur_pitch + dpitch
-                            send_servo_angles(ctl, target_yaw, target_pitch)
+                            # send_servo_angles(ctl, target_yaw, target_pitch)
                             cur_yaw, cur_pitch = target_yaw, target_pitch
                             current_target_id = next_id_map[tid]
                             last_advanced_time = now_t
@@ -582,7 +583,7 @@ def main():
         cv2.destroyAllWindows()
         try: pose.close()
         except: pass
-        try: ctl.close()
+        try: print("hi")# ctl.close()
         except: pass
 
 if __name__ == "__main__":
