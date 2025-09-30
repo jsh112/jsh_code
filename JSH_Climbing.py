@@ -564,9 +564,9 @@ def main():
         next_id_map[a_id]   = b_id
         delta_from_id[a_id] = (dyaw, dpitch)
 
-    print("[ΔAngles] (hold_index order):")
-    for a_id, b_id, dyaw, dpitch, d3d in angle_deltas:
-        print(f"  {a_id}->{b_id}: Δyaw={dyaw:+.2f}°, Δpitch={dpitch:+.2f}°, angle={d3d:.2f}°")
+    # print("[ΔAngles] (hold_index order):")
+    # for a_id, b_id, dyaw, dpitch, d3d in angle_deltas:
+    #     print(f"  {a_id}->{b_id}: Δyaw={dyaw:+.2f}°, Δpitch={dpitch:+.2f}°, angle={d3d:.2f}°")
     
 
     # ===== Servo 초기화 & 초기 조준 =====
