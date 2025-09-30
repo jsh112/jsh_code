@@ -27,10 +27,10 @@ O = np.array([18.5, -80, -33], dtype=np.float64)
 # print("Point 0 - Pitch:", pitch0, "Yaw:", yaw0)
 
 points = [
-    np.array([260.19, -566.05, 3660.13]),
-    np.array([143.58, -405.71, 3161.13]),
-    np.array([276.53,  38.96, 3197.47]),
-    np.array([160.82, 270.95, 3351.58])
+    np.array([261.45, -558.70, 3612.60]),
+    np.array([497.07,-417.25, 3477.08]),
+    np.array([629.89, 2-.31,3521.27]),
+    np.array([542.01, 239.52, 3659.99])
 ]
 
 for i, pt in enumerate(points):
