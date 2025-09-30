@@ -182,15 +182,17 @@ def main():
     map1x,map1y,map2x,map2y,P1,P2,size = load_stereo(NPZ_PATH)
     W,H = size
     cap1,cap2 = open_cams(CAM1_INDEX,CAM2_INDEX,size)
-    model = YOLO(str(MODEL_PATH))
+    model = YOLO(str(MODEL_PATH), device="cuda")
     cv2.namedWindow("Stereo YOLO 3D", cv2.WINDOW_NORMAL)
+
+    rows = []
 
     while True:
         ok1,f1 = cap1.read(); ok2,f2 = cap2.read()
         if not (ok1 and ok2): break
+
         Lr = rectify(f1,map1x,map1y,size)
         Rr = rectify(f2,map2x,map2y,size)
-
         holdsL = extract_holds(Lr,model)
         holdsR = extract_holds(Rr,model)
 
@@ -204,18 +206,33 @@ def main():
                 cx,cy = h["center"]
                 cv2.circle(vis,(cx+xoff,cy),4,(255,255,255),-1)
 
-        # 3D 좌표 (매칭된 홀드 인덱스 기준)
+        # 3D 좌표 계산 + 화면에 표시 + CSV 저장
         for hL in holdsL:
             hid = hL["hold_index"]
-            hR = next((x for x in holdsR if x["hold_index"]==hid),None)
+            hR = next((x for x in holdsR if x["hold_index"] == hid), None)
             if hR:
-                X = triangulate_xy(P1,P2,hL["center"],hR["center"])
+                X = triangulate_xy(P1, P2, hL["center"], hR["center"])
+                # 터미널 출력
                 print(f"ID {hid}  X={X[0]:.1f}, Y={X[1]:.1f}, Z={X[2]:.1f} mm  Color={hL['class_name']}")
+                # 화면 표시
+                cx, cy = hL["center"]
+                cv2.putText(vis, f"ID{hid}", (cx, cy-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1)
+                # CSV 기록용
+                rows.append({
+                    "hold_id": hid,
+                    "x_mm": X[0],
+                    "y_mm": X[1],
+                    "z_mm": X[2],
+                    "color": hL["class_name"]
+                })
+        # CSV 저장
 
-        cv2.imshow("Stereo YOLO 3D",vis)
-        k = cv2.waitKey(1) & 0xFF
-        if k==ord('q'): break
-
+    fieldnames = ["hold_id", "x_mm", "y_mm", "z_mm", "color"]
+    with open(CSV_GRIPS_PATH, mode="w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+    print(f"CSV 저장 완료: {CSV_GRIPS_PATH}")
     cap1.release(); cap2.release()
     cv2.destroyAllWindows()
 
