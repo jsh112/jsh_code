@@ -382,10 +382,6 @@ def reprojection_error(ptsL, ptsR, pts3D, P1, P2):
     print(f"[Summary] Avg error: Left={np.mean(errs_L):.2f}px, Right={np.mean(errs_R):.2f}px")
     return errs_L, errs_R, reproj_coords
 
-def angle_to_pwm(angle_deg, min_ms=1.0, max_ms=2.0, min_deg=0, max_deg=180):
-    ms = min_ms + (angle_deg - min_deg) * (max_ms - min_ms) / (max_deg - min_deg)
-    return ms
-
 def save_reproj_right_image(f_right, map2x, map2y, size, reproj_coords, common_ids, filename="reproj_right.png"):
     """
     우측 카메라에 재투영한 3D 좌표를 이미지에 점으로 표시하고 PNG로 저장.
@@ -457,8 +453,8 @@ def main():
     def send_servo_angles(yaw_angle, pitch_angle):
         """yaw/pitch 각도를 받아 아두이노 PWM으로 전송"""
         # 각도를 PWM으로 변환
-        yaw_pwm   = angle_to_pwm(yaw_angle, min_angle=-15, max_angle=15)
-        pitch_pwm = angle_to_pwm(pitch_angle, min_angle=-15, max_angle=15)
+        yaw_pwm   = angle_to_pwm(yaw_angle, min_angle=-15, max_angle=15, min_pwm=1000, max_pwm=2000)
+        pitch_pwm = angle_to_pwm(pitch_angle, min_angle=-15, max_angle=15, min_pwm=1000, max_pwm=2000)
 
         # 2바이트씩 little-endian 전송
         data = struct.pack('<HH', yaw_pwm, pitch_pwm)
