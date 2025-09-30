@@ -11,7 +11,7 @@ def point_to_motor_angles(point, O):
 
     # Pitch: 좌우 회전 (모터 기준: 좌+)
     # 좌표계 X가 오른쪽, Z가 앞으로 → 좌회전 +PWM, 우회전 -PWM
-    pitch = np.degrees(np.arctan2(vec[0], vec[2]))  # X/Z
+    pitch = -np.degrees(np.arctan2(vec[0], vec[2]))  # X/Z
     # 모터 방향과 반대면 부호 반전 필요 시: pitch = -pitch
 
     # Yaw: 상하 회전 (모터 기준: 위+)
