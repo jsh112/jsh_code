@@ -243,17 +243,19 @@ def main():
     # 픽셀 거리 기반 좌/우 매칭
     matched_pairs = []
     max_dist_px = 20
+    row_tol = 10  # y 좌표 허용 오차
     for Lh in holdsL:
         best_R = None
         best_dist = max_dist_px
         for Rh in holdsR:
+            if abs(Lh["center"][1] - Rh["center"][1]) > row_tol:
+                continue  # 같은 row가 아니면 후보 제외
             dist = np.linalg.norm(np.array(Lh["center"]) - np.array(Rh["center"]))
             if dist < best_dist:
                 best_dist = dist
                 best_R = Rh
         if best_R is not None:
             matched_pairs.append((Lh, best_R))
-
     # 3D 좌표 계산
     for Lh, Rh in matched_pairs:
         X = triangulate_xy(P1, P2, Lh["center"], Rh["center"])
