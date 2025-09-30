@@ -420,6 +420,28 @@ def save_reproj_right_image(f_right, map2x, map2y, size, reproj_coords, common_i
     print(f"[Saved] Reprojected right image -> {filename}")
 
 # ---------- 장세환의 추가 코드 --------------
+def project_point(P, X):
+    """
+    3D 점 X를 카메라 행렬 P로 투영
+    P : 3x4 projection matrix
+    X : 3D point [X, Y, Z]
+    return : (px, py) pixel 좌표
+    """
+    X_h = np.hstack([X, 1.0])          # 동차좌표
+    x_proj = P @ X_h
+    x_proj /= x_proj[2]
+    return int(x_proj[0]), int(x_proj[1])
+
+def draw_camera_origin(img, P, Z_dummy=3000, color=(0,0,255), label="Camera origin"):
+    """
+    이미지에 카메라 중앙점(0,0,Z_dummy)을 찍음
+    """
+    origin_3D = np.array([0.0, 0.0, Z_dummy])
+    px, py = project_point(P, origin_3D)
+    cv2.circle(img, (px, py), 6, color, -1)
+    cv2.putText(img, label, (px+5, py-5),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
+    return img
 # ---------- 메인 ----------
 
 def main():
@@ -465,6 +487,10 @@ def main():
             raise SystemExit("초기 프레임 캡쳐 실패")
         Lr_k = rectify(f1, map1x, map1y, size)
         Rr_k = rectify(f2, map2x, map2y, size)
+        Lr_k_vis = draw_camera_origin(Lr_k.copy(), P1, Z_dummy=3000)
+        Rr_k_vis = draw_camera_origin(Rr_k.copy(), P2, Z_dummy=3000)
+
+
         holdsL_k = extract_holds_with_indices(Lr_k, model, selected_class_name, THRESH_MASK, ROW_TOL_Y)
         holdsR_k = extract_holds_with_indices(Rr_k, model, selected_class_name, THRESH_MASK, ROW_TOL_Y)
         L_sets.append(holdsL_k); R_sets.append(holdsR_k)
@@ -651,6 +677,8 @@ def main():
                         (10, H-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,255,255), 1, cv2.LINE_AA)
 
             cv2.imshow(WINDOW_NAME, vis)
+            cv2.imshow("Left Camera with Origin", Lr_k_vis)
+            cv2.imshow("Right Camera with Origin", Rr_k_vis)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
