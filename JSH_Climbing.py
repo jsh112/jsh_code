@@ -546,9 +546,8 @@ def main():
         # 1. 레이저 원점 기준으로 pitch, yaw 각도 계산
         pitch_deg, yaw_deg = point_to_motor_angles(point, O)
     
-        pitch_pwm = angle_to_pwm(pitch_deg, min_angle=-30, max_angle=30, min_pwm=1000, max_pwm=2000)
-        yaw_pwm   = angle_to_pwm(yaw_deg,   min_angle=-30, max_angle=30, min_pwm=1000, max_pwm=2000)
-
+        pitch_pwm = angle_to_pwm(pitch_deg)
+        yaw_pwm   = angle_to_pwm(yaw_deg)
         
         # 3. 값 확인
         print(f"Point {i}: Pitch={pitch_deg:.2f}° ({pitch_pwm}us), Yaw={yaw_deg:.2f}° ({yaw_pwm}us)")

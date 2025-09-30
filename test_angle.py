@@ -20,13 +20,10 @@ def point_to_motor_angles(point, O):
 
     return pitch, yaw
 
-def angle_to_pwm(angle, min_angle=-30, max_angle=30, min_pwm=1000, max_pwm=2000):
-    # 범위 클리핑
-    angle = max(min_angle, min(max_angle, angle))
-    # 선형 매핑
-    scale = (max_pwm - min_pwm) / (max_angle - min_angle)
-    pwm = min_pwm + (angle - min_angle) * scale
-    return int(round(pwm))  # 정수 반환
+def angle_to_pwm(angle_deg, min_deg=-30, max_deg=30, min_us=1000, max_us=2000):
+    """각도(°)를 PWM (us)로 변환"""
+    us = min_us + (angle_deg - min_deg) * (max_us - min_us) / (max_deg - min_deg)
+    return int(round(us))
 # 레이저 원점 O
 # O = np.array([18.5, -80, -33], dtype=np.float64)
 # point0 = np.array([260.19, -566.05, 3660.13], dtype=np.float64)
