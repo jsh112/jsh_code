@@ -488,8 +488,8 @@ def main():
             raise SystemExit("초기 프레임 캡쳐 실패")
         Lr_k = rectify(f1, map1x, map1y, size)
         Rr_k = rectify(f2, map2x, map2y, size)
-        Lr_k_vis = draw_camera_origin(Lr_k.copy(), P1, origin_3D=O)
-        Rr_k_vis = draw_camera_origin(Rr_k.copy(), P2, origin_3D=O)
+        # Lr_k_vis = draw_camera_origin(Lr_k.copy(), P1, origin_3D=O)
+        # Rr_k_vis = draw_camera_origin(Rr_k.copy(), P2, origin_3D=O)
 
 
         holdsL_k = extract_holds_with_indices(Lr_k, model, selected_class_name, THRESH_MASK, ROW_TOL_Y)
