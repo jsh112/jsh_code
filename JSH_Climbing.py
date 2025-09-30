@@ -1,83 +1,37 @@
-import time
+import cv2
 import numpy as np
 from pathlib import Path
 from ultralytics import YOLO
 import csv
-import cv2
-import argparse
 
-# ========= 사용자 환경 경로 =========
-NPZ_PATH       = r"/home/jojang/Desktop/climbing/stereo_params_scaled.npz"
-MODEL_PATH     = r"/home/jojang/Desktop/climbing/best_5.pt"
+# ================== 사용자 환경 ==================
+NPZ_PATH = r"/home/jojang/Desktop/climbing/stereo_params_scaled.npz"
+MODEL_PATH = r"/home/jojang/Desktop/climbing/best_5.pt"
 
-CAM1_INDEX     = 0   # 왼쪽 카메라
-CAM2_INDEX     = 1   # 오른쪽 카메라
+CAM1_INDEX = 0
+CAM2_INDEX = 1
 
-SWAP_INPUT     = False   # 입력 좌/우 스왑
-SWAP_DISPLAY   = False   # 화면 표시 좌/우 스왑
-
-WINDOW_NAME    = "Rectified L | R  (10f merged; MP Left; Δ-Relative Servo + WEB)"
-SHOW_GRID      = False
-THRESH_MASK    = 0.7
-ROW_TOL_Y      = 30
-SELECTED_COLOR = None    # 예: 'orange' (None=전체)
-
-# 자동 진행(터치→다음 홀드) 관련
-TOUCH_THRESHOLD = 10     # in-polygon 연속 프레임 임계(기본 10)
-ADV_COOLDOWN    = 0.5    # 연속 넘김 방지 쿨다운(sec)
-
-# 저장 옵션
-SAVE_VIDEO     = False
-OUT_FPS        = 30
-OUT_PATH       = "stereo_overlay.mp4"
 CSV_GRIPS_PATH = "grip_records.csv"
 
-# ---- 레이저 원점(LEFT 기준) 오프셋 (cm) ----
-LASER_OFFSET_CM_LEFT = 1.85
-LASER_OFFSET_CM_UP   = 8.0
-LASER_OFFSET_CM_FWD  = -3.3
-Y_UP_IS_NEGATIVE     = True  # 위 방향이 -y인 좌표계면 True
-
-# 각도 보정/선형 캘리브레이션(필요시 사용)
-YAW_OFFSET_DEG   = 0.0
-PITCH_OFFSET_DEG = 0.0
-USE_LINEAR_CAL   = False
-A11, A12, B1     = 1.0, 0.0, 0.0
-A21, A22, B2     = 0.0, 1.0, 0.0
-
-# === 서보 기준(중립 90/90) & 부호/스케일 ===
-BASE_YAW_DEG   = 90.0   # 서보 중립
-BASE_PITCH_DEG = 90.0   # 서보 중립
-YAW_SIGN       = -1.0   # 반대로 가면 -1.0
-PITCH_SIGN     = +1.0   # 반대로 가면 -1.0
-YAW_SCALE      = 1.0    # 필요시 감도 미세조정
-PITCH_SCALE    = 1.0
-
-# ==== 색상 맵 ====
 COLOR_MAP = {
     'Hold_Red':(0,0,255),'Hold_Orange':(0,165,255),'Hold_Yellow':(0,255,255),
     'Hold_Green':(0,255,0),'Hold_Blue':(255,0,0),'Hold_Purple':(204,50,153),
     'Hold_Pink':(203,192,255),'Hold_Lime':(50,255,128),'Hold_Sky':(255,255,0),
     'Hold_White':(255,255,255),'Hold_Black':(30,30,30),'Hold_Gray':(150,150,150),
 }
-ALL_COLORS = {
-    'red':'Hold_Red','orange':'Hold_Orange','yellow':'Hold_Yellow','green':'Hold_Green',
-    'blue':'Hold_Blue','purple':'Hold_Purple','pink':'Hold_Pink','white':'Hold_White',
-    'black':'Hold_Black','gray':'Hold_Gray','lime':'Hold_Lime','sky':'Hold_Sky',
-}
 
-# ====== 스테레오 로드 ======
+# ================== 유틸 함수 ==================
 def load_stereo(npz_path):
     S = np.load(npz_path, allow_pickle=True)
     K1, D1 = S["K1"], S["D1"]; K2, D2 = S["K2"], S["D2"]
     R1, R2 = S["R1"], S["R2"]; P1, P2 = S["P1"], S["P2"]
     W, H   = [int(x) for x in S["image_size"]]
-    map1x, map1y = cv2.initUndistortRectifyMap(K1, D1, R1, P1, (W, H), cv2.CV_32FC1)
-    map2x, map2y = cv2.initUndistortRectifyMap(K2, D2, R2, P2, (W, H), cv2.CV_32FC1)
-    return (map1x, map1y, map2x, map2y, P1, P2, (W, H))
+    map1x, map1y = cv2.initUndistortRectifyMap(K1, D1, R1, P1, (W,H), cv2.CV_32FC1)
+    map2x, map2y = cv2.initUndistortRectifyMap(K2, D2, R2, P2, (W,H), cv2.CV_32FC1)
+    return map1x, map1y, map2x, map2y, P1, P2, (W,H)
 
 def open_cams(idx1, idx2, size):
-    W, H = size
+    W,H = size
     cap1 = cv2.VideoCapture(idx1, cv2.CAP_V4L2)
     cap2 = cv2.VideoCapture(idx2, cv2.CAP_V4L2)
     cap1.set(cv2.CAP_PROP_FRAME_WIDTH, W); cap1.set(cv2.CAP_PROP_FRAME_HEIGHT, H)
@@ -87,9 +41,9 @@ def open_cams(idx1, idx2, size):
     return cap1, cap2
 
 def rectify(frame, mx, my, size):
-    W, H = size
-    if (frame.shape[1], frame.shape[0]) != (W, H):
-        frame = cv2.resize(frame, (W, H))
+    W,H = size
+    if (frame.shape[1], frame.shape[0]) != (W,H):
+        frame = cv2.resize(frame, (W,H))
     return cv2.remap(frame, mx, my, cv2.INTER_LINEAR)
 
 def extract_holds(frame, model, mask_thresh=0.7, row_tol=50):
@@ -110,8 +64,13 @@ def extract_holds(frame, model, mask_thresh=0.7, row_tol=50):
         M = cv2.moments(contour)
         if M["m00"]==0: continue
         cx = int(M["m10"]/M["m00"]); cy = int(M["m01"]/M["m00"])
-        holds.append({"class_name": class_name, "color": COLOR_MAP.get(class_name,(255,255,255)),
-                      "contour": contour, "center": (cx,cy)})
+        holds.append({
+            "class_name": class_name,
+            "color": COLOR_MAP.get(class_name,(255,255,255)),
+            "contour": contour,
+            "center": (cx,cy),
+            "conf": float(boxes.conf[i]) if hasattr(boxes,'conf') else 0.0
+        })
     # row 정렬
     if not holds: return []
     enriched = [{"cx":h_["center"][0],"cy":h_["center"][1],**h_} for h_ in holds]
@@ -125,20 +84,30 @@ def extract_holds(frame, model, mask_thresh=0.7, row_tol=50):
     for row in rows:
         row.sort(key=lambda h: h["cx"])
         final.extend(row)
-    for idx,h_ in enumerate(final): h_["hold_index"]=idx
     return final
 
-def merge_holds(Lh,Rh,merge_dist_px=18):
+def merge_holds_by_center(holds_lists, merge_dist_px=18):
     merged = []
-    for h in Lh+Rh:
-        h = {k:v for k,v in h.items()}
-        h.pop("hold_index",None)
-        assigned = False
-        for m in merged:
-            dx = h["center"][0]-m["center"][0]; dy = h["center"][1]-m["center"][1]
-            if (dx*dx+dy*dy)**0.5 <= merge_dist_px:
-                assigned=True; break
-        if not assigned: merged.append(h)
+    for holds in holds_lists:
+        for h in holds:
+            h = {k: v for k, v in h.items()}
+            h.pop("hold_index", None)
+            assigned = False
+            for m in merged:
+                dx = h["center"][0] - m["center"][0]
+                dy = h["center"][1] - m["center"][1]
+                if (dx*dx + dy*dy)**0.5 <= merge_dist_px:
+                    area_h = cv2.contourArea(h["contour"])
+                    area_m = cv2.contourArea(m["contour"])
+                    if (area_h > area_m) or (abs(area_h - area_m)<1e-6 and h.get("conf",0)>m.get("conf",0)):
+                        m.update(h)
+                    assigned = True
+                    break
+            if not assigned:
+                merged.append(h)
+    # 인덱스 부여
+    for idx,h in enumerate(merged):
+        h["hold_index"] = idx
     return merged
 
 def triangulate_xy(P1,P2,ptL,ptR):
@@ -148,124 +117,30 @@ def triangulate_xy(P1,P2,ptL,ptR):
     X = (Xh[:3]/Xh[3]).reshape(3)
     return X
 
-def save_holds_3d_to_csv(holdsL, holdsR, P1, P2, csv_path):
-    """좌/우 홀드 매칭 후 3D 좌표 계산하고 CSV 저장"""
-    rows = []
-    for hL in holdsL:
-        hid = hL["hold_index"]
-        hR = next((x for x in holdsR if x["hold_index"] == hid), None)
-        if hR:
-            X = triangulate_xy(P1, P2, hL["center"], hR["center"])
-            row = {
-                "hold_id": hid,
-                "x_mm": X[0],
-                "y_mm": X[1],
-                "z_mm": X[2],
-                "color": hL["class_name"]
-            }
-            rows.append(row)
-
-    # CSV 저장
-    fieldnames = ["hold_id", "x_mm", "y_mm", "z_mm", "color"]
-    with open(csv_path, mode="w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(rows)
-
-    return rows
-
-def save_holds_to_csv(rows, csv_path="grip_records.csv"):
-    """
-    현재까지 기록된 홀드 3D 좌표를 CSV로 저장 (고정폭 정렬)
-    """
-    if not rows:
-        return
-
-    # 고정폭 포맷 지정
-    header_fmt = "{:<8} {:>10} {:>10} {:>10} {:<10}"
-    row_fmt    = "{:<8} {:>10.1f} {:>10.1f} {:>10.1f} {:<10}"
-    
-    try:
-        with open(csv_path, "w") as f:
-            f.write(header_fmt.format("hold_id","x_mm","y_mm","z_mm","color") + "\n")
-            for r in rows:
-                f.write(row_fmt.format(r["hold_id"], r["x_mm"], r["y_mm"], r["z_mm"], r["color"]) + "\n")
-    except Exception as e:
-        print(f"CSV 저장 실패: {e}")
-
-import csv
-
-def format_row_fixed_width(row, widths=(10,10,10,10,15)):
-    """
-    딕셔너리 row를 고정폭 문자열로 변환
-    widths: (hold_id, x_mm, y_mm, z_mm, color) 각 열 너비
-    """
-    return f"{str(row['hold_id']).rjust(widths[0])}" \
-           f"{row['x_mm']:>{widths[1]}.1f}" \
-           f"{row['y_mm']:>{widths[2]}.1f}" \
-           f"{row['z_mm']:>{widths[3]}.1f}" \
-           f"{row['color']:>{widths[4]}}"
-
-def save_holds_to_csv_real_time(rows, csv_path="grip_records.csv"):
-    """
-    실시간 CSV 저장
-    - 중복 hold_id 제거 (가장 최근 데이터만 저장)
-    - 고정폭 포맷으로 기록
-    """
-    if not rows:
-        return
-
-    # 중복 제거: hold_id 기준, 마지막 값이 남도록
-    unique = {}
-    for r in rows:
-        unique[r["hold_id"]] = r
-    unique_rows = [v for k,v in sorted(unique.items())]  # hold_id 순 정렬
-
-    # CSV 저장
-    try:
-        with open(csv_path, mode="w", newline="") as f:
-            # 헤더 (문자열 그대로)
-            header = "hold_id".rjust(10) + "x_mm".rjust(10) + "y_mm".rjust(10) + "z_mm".rjust(10) + "color".rjust(15)
-            f.write(header + "\n")
-
-            # 데이터
-            for r in unique_rows:
-                f.write(format_row_fixed_width(r) + "\n")
-    except Exception as e:
-        print(f"CSV 저장 실패: {e}")
-
-
-def save_holds_to_csv_cumulative(cumulative_rows, csv_path="grip_records.csv"):
-    """
-    누적 기록을 CSV로 저장 (고정폭 포맷)
-    - cumulative_rows: 프레임별로 누적된 모든 rows
-    """
-    if not cumulative_rows:
-        return
-
+def save_holds_to_csv_cumulative(all_rows, csv_path="grip_records.csv"):
+    if not all_rows: return
     header_fmt = "{:<8} {:>10} {:>10} {:>10} {:<15}"
-    row_fmt    = "{:<8} {:>10.1f} {:>10.1f} {:>10.1f} {:<15}"
-
+    row_fmt = "{:<8} {:>10.1f} {:>10.1f} {:>10.1f} {:<15}"
     try:
-        with open(csv_path, "w") as f:
-            f.write(header_fmt.format("hold_id","x_mm","y_mm","z_mm","color") + "\n")
-            for r in cumulative_rows:
-                f.write(row_fmt.format(r["hold_id"], r["x_mm"], r["y_mm"], r["z_mm"], r["color"]) + "\n")
+        with open(csv_path,"w") as f:
+            f.write(header_fmt.format("hold_id","x_mm","y_mm","z_mm","color")+"\n")
+            for r in all_rows:
+                f.write(row_fmt.format(r["hold_id"], r["x_mm"], r["y_mm"], r["z_mm"], r["color"])+"\n")
     except Exception as e:
         print(f"CSV 저장 실패: {e}")
 
-all_rows = []
-
-# ====== 메인 ======
+# ================== 메인 ==================
 def main():
-    # 카메라 관련
-    for p in (NPZ_PATH, MODEL_PATH):
-        if not Path(p).exists(): raise FileNotFoundError(f"{p} 없음")
+    if not Path(NPZ_PATH).exists() or not Path(MODEL_PATH).exists():
+        raise FileNotFoundError("NPZ 또는 모델 파일 없음")
+
     map1x,map1y,map2x,map2y,P1,P2,size = load_stereo(NPZ_PATH)
     W,H = size
     cap1,cap2 = open_cams(CAM1_INDEX,CAM2_INDEX,size)
     model = YOLO(str(MODEL_PATH))
     cv2.namedWindow("Stereo YOLO 3D", cv2.WINDOW_NORMAL)
+
+    all_rows = []
 
     while True:
         ok1,f1 = cap1.read(); ok2,f2 = cap2.read()
@@ -273,40 +148,39 @@ def main():
 
         Lr = rectify(f1,map1x,map1y,size)
         Rr = rectify(f2,map2x,map2y,size)
-        holdsL = extract_holds(Lr,model)
-        holdsR = extract_holds(Rr,model)
+
+        holdsL = extract_holds(Lr, model)
+        holdsR = extract_holds(Rr, model)
+
+        # 좌/우 병합 및 인덱스 유지
+        merged_holds = merge_holds_by_center([holdsL, holdsR])
 
         # 화면 표시
         vis = np.hstack([Lr,Rr])
-        for side, holds in (("L",holdsL),("R",holdsR)):
-            xoff = 0 if side=="L" else W
-            for h in holds:
-                cnt_shifted = h["contour"] + np.array([[[xoff,0]]],dtype=h["contour"].dtype)
-                cv2.drawContours(vis,[cnt_shifted],-1,h["color"],2)
-                cx,cy = h["center"]
-                cv2.circle(vis,(cx+xoff,cy),4,(255,255,255),-1)
+        for h in merged_holds:
+            cx,cy = h["center"]
+            cv2.circle(vis,(cx,cy),4,h["color"],-1)
+            cv2.putText(vis,str(h["hold_index"]),(cx,cy-5),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,255),1)
 
-        # 3D 좌표 계산 후
-        rows = []
-        for hL in holdsL:
-            hR = next((x for x in holdsR if x["hold_index"] == hL["hold_index"]), None)
+        # 3D 좌표 계산 후 누적
+        for h in merged_holds:
+            hid = h["hold_index"]
+            hR = next((x for x in holdsR if x["center"]==h["center"]), None)
             if hR:
-                X = triangulate_xy(P1, P2, hL["center"], hR["center"])
-                rows.append({
-                    "hold_id": hL["hold_index"],
+                X = triangulate_xy(P1,P2,h["center"],hR["center"])
+                all_rows.append({
+                    "hold_id": hid,
                     "x_mm": X[0],
                     "y_mm": X[1],
                     "z_mm": X[2],
-                    "color": hL["class_name"]
+                    "color": h["class_name"]
                 })
-        all_rows.extend(rows)  # 누적
-        # 실시간 저장
-        save_holds_to_csv_real_time(all_rows, CSV_GRIPS_PATH)
 
+        # 누적 CSV 저장
+        save_holds_to_csv_cumulative(all_rows, CSV_GRIPS_PATH)
 
-        # 화면 표시
         cv2.imshow("Stereo YOLO 3D", vis)
-        if cv2.waitKey(1) & 0xFF == 27:  # ESC로 종료
+        if cv2.waitKey(1) & 0xFF == 27:  # ESC
             break
 
     cap1.release(); cap2.release()
