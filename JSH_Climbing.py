@@ -302,12 +302,15 @@ def imshow_scaled(win, img, maxw=None):
 def xoff_for(side, W, swap):
     return (W if swap else 0) if side=="L" else (0 if swap else W)
 
-def send_servo_angles(ctl, yaw_cmd, pitch_cmd):
-    try:
-        # print(f"[Servo] send: yaw={yaw_cmd:.2f}°, pitch={pitch_cmd:.2f}°")
-        ctl.set_angles(pitch_cmd, yaw_cmd)  # (pitch, yaw) 순서
-    except Exception as e:
-        print(f"[Servo ERROR] {e}")
+import struct
+
+def send_servo_angles(yaw_pwm, pitch_pwm, ser):
+    yaw_pwm = int(round(yaw_pwm))
+    pitch_pwm = int(round(pitch_pwm))
+    data = struct.pack('<HH', yaw_pwm, pitch_pwm)  # 2바이트씩 little-endian
+    ser.write(data)
+    print(f"[Send] yaw_pwm={yaw_pwm}, pitch_pwm={pitch_pwm}")
+
 
 # ---------- 장세환의 추가 코드 --------------
 
