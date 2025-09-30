@@ -678,8 +678,6 @@ def main():
                         (10, H-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,255,255), 1, cv2.LINE_AA)
 
             cv2.imshow(WINDOW_NAME, vis)
-            cv2.imshow("Left Camera with Origin", Lr_k_vis)
-            cv2.imshow("Right Camera with Origin", Rr_k_vis)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
