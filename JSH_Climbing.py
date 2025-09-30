@@ -445,6 +445,13 @@ def draw_camera_origin(img, P, Z_dummy=3000, color=(0,0,255), label="Camera orig
 # ---------- 메인 ----------
 
 def main():
+
+    # 아두이노 연결
+    import serial
+    from control_arduino import ca
+
+    ser = serial.Serial('/dev/ttyUSB0', 115200)
+
     # 경로 검증
     for p in (NPZ_PATH, MODEL_PATH):
         if not Path(p).exists():
