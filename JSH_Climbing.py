@@ -214,7 +214,7 @@ def iou_mask(mask1, mask2):
     return intersection / union
 
 # ------------------- 2. 좌우 홀드 매칭(IOU 기준) -------------------
-def match_holds_by_iou(holdsL, holdsR, iou_thresh=0.3):
+def match_holds_by_iou(holdsL, holdsR, iou_thresh=0.2):
     """
     좌/우 홀드를 마스크 IOU 기준으로 매칭
     - holdsL, holdsR : extract_holds() 결과
@@ -299,7 +299,7 @@ def main():
         for h in holdsL: h["frame_shape"] = Lr.shape[:2]
         for h in holdsR: h["frame_shape"] = Rr.shape[:2]
 
-        matches = match_holds_by_iou(holdsL, holdsR, iou_thresh=0.3)
+        matches = match_holds_by_iou(holdsL, holdsR, iou_thresh=0.1)
         vis_matches = visualize_matches_iou(Lr, Rr, matches)
         cv2.imshow("Matches_IOU", vis_matches)
         # -------------------------------------------------------
