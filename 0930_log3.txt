@@ -1,0 +1,51 @@
+[Info] image_size=(640, 480), baseline~357.00 mm
+[Laser] Origin O (mm, LEFT-based) = [      -18.5         -80         -33]
+[Info] Color filter: all
+[Init] First 3 frames: YOLO seg & merge ...
+
+0: 480x640 3 Hold_Blacks, 1 Hold_Blue, 4 Hold_Greens, 2 Hold_Pinks, 1 Hold_Purple, 1 Hold_Red, 5 Hold_Yellows, 1709.3ms
+Speed: 9.1ms preprocess, 1709.3ms inference, 69.4ms postprocess per image at shape (1, 3, 480, 640)
+
+0: 480x640 1 Hold_Gray, 4 Hold_Greens, 1 Hold_Orange, 2 Hold_Pinks, 1 Hold_Purple, 2 Hold_Reds, 4 Hold_Yellows, 1592.1ms
+Speed: 5.1ms preprocess, 1592.1ms inference, 60.7ms postprocess per image at shape (1, 3, 480, 640)
+  - frame 1/3: L=4  R=4
+
+0: 480x640 4 Hold_Blacks, 1 Hold_Blue, 4 Hold_Greens, 2 Hold_Pinks, 1 Hold_Purple, 1 Hold_Red, 5 Hold_Yellows, 1616.9ms
+Speed: 5.2ms preprocess, 1616.9ms inference, 63.2ms postprocess per image at shape (1, 3, 480, 640)
+
+0: 480x640 1 Hold_Gray, 4 Hold_Greens, 1 Hold_Orange, 2 Hold_Pinks, 1 Hold_Purple, 2 Hold_Reds, 4 Hold_Yellows, 1624.7ms
+Speed: 4.9ms preprocess, 1624.7ms inference, 54.9ms postprocess per image at shape (1, 3, 480, 640)
+  - frame 2/3: L=4  R=4
+
+0: 480x640 3 Hold_Blacks, 1 Hold_Blue, 4 Hold_Greens, 2 Hold_Pinks, 1 Hold_Purple, 1 Hold_Red, 5 Hold_Yellows, 1579.2ms
+Speed: 5.2ms preprocess, 1579.2ms inference, 59.5ms postprocess per image at shape (1, 3, 480, 640)
+
+0: 480x640 1 Hold_Black, 1 Hold_Gray, 4 Hold_Greens, 1 Hold_Orange, 2 Hold_Pinks, 1 Hold_Purple, 2 Hold_Reds, 4 Hold_Yellows, 2090.9ms
+Speed: 7.4ms preprocess, 2090.9ms inference, 59.8ms postprocess per image at shape (1, 3, 480, 640)
+  - frame 3/3: L=4  R=4
+[Info] 공통 홀드 개수: 4
+ptsL is [[        234          95]
+ [        298         128]
+ [        336         244]
+ [        302         301]]
+ptsR is [[        142         103]
+ [        206         135]
+ [        244         250]
+ [        214         308]]
+[Epipolar check] 평균 Y 오차: 7.00px, 최대: 8.00px
+Point 0: X=-429.26 mm, Y=-584.08 mm, Z=3023.95 mm
+Point 1: X=-180.88 mm, Y=-457.93 mm, Z=3023.82 mm
+Point 2: X=-33.41 mm, Y=-9.73 mm, Z=3023.77 mm
+Point 3: X=-172.87 mm, Y=223.11 mm, Z=3161.27 mm
+Point 0: errL=4.00px, errR=4.00px
+Point 1: errL=3.50px, errR=3.50px
+Point 2: errL=3.00px, errR=3.00px
+Point 3: errL=3.50px, errR=3.50px
+[Summary] Avg error: Left=3.50px, Right=3.50px
+errs_L is [np.float64(3.99625919431402), np.float64(3.497681739508082), np.float64(2.999962814368939), np.float64(3.501098647348746)]
+errs_R is [np.float64(4.003744599429743), np.float64(3.502318742287999), np.float64(3.0000371965167103), np.float64(3.4989017689459216)]
+[ΔAngles] (hold_index order):
+  0->1: Δyaw=+4.61°, Δpitch=-2.24°, angle=5.09°
+  1->2: Δyaw=+2.76°, Δpitch=-8.36°, angle=8.80°
+  2->3: Δyaw=-2.49°, Δpitch=-4.10°, angle=4.79°
+hi
