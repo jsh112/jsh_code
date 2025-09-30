@@ -1,52 +1,35 @@
-[Info] image_size=(640, 480), baseline~357.00 mm
-[Laser] Origin O (mm, LEFT-based) = [       18.5         -80         -33]
-[Info] Color filter: all
-[Init] First 3 frames: YOLO seg & merge ...
-
-0: 480x640 1 Hold_Blue, 4 Hold_Greens, 2 Hold_Pinks, 1 Hold_Red, 3 Hold_Yellows, 1655.6ms
-Speed: 8.3ms preprocess, 1655.6ms inference, 52.6ms postprocess per image at shape (1, 3, 480, 640)
-
-0: 480x640 1 Hold_Black, 1 Hold_Gray, 4 Hold_Greens, 2 Hold_Pinks, 1 Hold_Purple, 1 Hold_Red, 1 Hold_White, 3 Hold_Yellows, 1559.7ms
-Speed: 4.9ms preprocess, 1559.7ms inference, 64.6ms postprocess per image at shape (1, 3, 480, 640)
-  - frame 1/3: L=4  R=4
-
-0: 480x640 1 Hold_Black, 1 Hold_Blue, 4 Hold_Greens, 2 Hold_Pinks, 1 Hold_Red, 3 Hold_Yellows, 1522.6ms
-Speed: 5.2ms preprocess, 1522.6ms inference, 44.6ms postprocess per image at shape (1, 3, 480, 640)
-
-0: 480x640 1 Hold_Black, 1 Hold_Gray, 4 Hold_Greens, 2 Hold_Pinks, 1 Hold_Purple, 1 Hold_Red, 1 Hold_White, 3 Hold_Yellows, 1664.8ms
-Speed: 4.7ms preprocess, 1664.8ms inference, 57.8ms postprocess per image at shape (1, 3, 480, 640)
-  - frame 2/3: L=4  R=4
-
-0: 480x640 2 Hold_Blacks, 1 Hold_Blue, 4 Hold_Greens, 2 Hold_Pinks, 1 Hold_Red, 3 Hold_Yellows, 1533.0ms
-Speed: 5.3ms preprocess, 1533.0ms inference, 42.3ms postprocess per image at shape (1, 3, 480, 640)
-
-0: 480x640 1 Hold_Black, 4 Hold_Greens, 2 Hold_Pinks, 1 Hold_Purple, 1 Hold_Red, 1 Hold_White, 3 Hold_Yellows, 1718.7ms
-Speed: 4.8ms preprocess, 1718.7ms inference, 49.3ms postprocess per image at shape (1, 3, 480, 640)
-  - frame 3/3: L=4  R=4
-[Info] 공통 홀드 개수: 4
-ptsL is [[        405         124]
- [        460         152]
- [        488         248]
- [        460         296]]
-ptsR is [[        328         134]
- [        380         160]
- [        411         256]
- [        385         304]]
-[Epipolar check] 평균 Y 오차: 8.50px, 최대: 10.00px
-Point 0: X=279.99 mm, Y=-558.70 mm, Z=3612.58 mm
-Point 1: X=514.92 mm, Y=-417.25 mm, Z=3477.07 mm
-Point 2: X=664.78 mm, Y=11.56 mm, Z=3612.47 mm
-Point 3: X=549.24 mm, Y=240.34 mm, Z=3708.86 mm
-Point 0: Pitch=-4.10° (0.9772070181955387us), Yaw=7.46° (1.0414540317130787us)
-Point 1: Pitch=-8.05° (0.9552793427821349us), Yaw=5.43° (1.0301914700088914us)
-Point 2: Pitch=-10.05° (0.9441494803970665us), Yaw=-1.42° (0.9921296690443632us)
-Point 3: Pitch=-8.07° (0.9551505271430762us), Yaw=-4.84° (0.9730842547897608us)
-Point 0: errL=5.00px, errR=5.00px
-Point 1: errL=4.00px, errR=4.00px
-Point 2: errL=4.00px, errR=4.00px
-Point 3: errL=4.00px, errR=4.00px
-[Summary] Avg error: Left=4.25px, Right=4.25px
-errs_L is [np.float64(4.995183905096097), np.float64(3.9976257834225186), np.float64(4.0000699699592595), np.float64(4.001299717948839)]
-errs_R is [np.float64(5.004818422868897), np.float64(4.002378508632699), np.float64(3.9999367052460353), np.float64(3.9987046705250897)]
-[Saved] Reprojected right image -> right_reproj.png
-hi
+Traceback (most recent call last):
+  File "/home/jsh/Desktop/JSH_CODE/jsh_code/JSH_Climbing.py", line 23, in <module>
+    from ultralytics import YOLO
+  File "/home/jsh/.local/lib/python3.11/site-packages/ultralytics/__init__.py", line 12, in <module>
+    from ultralytics.utils import ASSETS, SETTINGS
+  File "/home/jsh/.local/lib/python3.11/site-packages/ultralytics/utils/__init__.py", line 25, in <module>
+    import torch
+  File "/home/jsh/.local/lib/python3.11/site-packages/torch/__init__.py", line 2475, in <module>
+    from torch import (
+  File "/home/jsh/.local/lib/python3.11/site-packages/torch/export/__init__.py", line 28, in <module>
+    from torch.fx.passes.infra.pass_base import PassResult
+  File "/home/jsh/.local/lib/python3.11/site-packages/torch/fx/passes/__init__.py", line 1, in <module>
+    from . import graph_drawer
+  File "/home/jsh/.local/lib/python3.11/site-packages/torch/fx/passes/graph_drawer.py", line 13, in <module>
+    from torch.fx.passes.shape_prop import TensorMetadata
+  File "/home/jsh/.local/lib/python3.11/site-packages/torch/fx/passes/shape_prop.py", line 11, in <module>
+    from torch._guards import detect_fake_mode
+  File "/home/jsh/.local/lib/python3.11/site-packages/torch/_guards.py", line 160, in <module>
+    @dataclasses.dataclass
+     ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dataclasses.py", line 1232, in dataclass
+    return wrap(cls)
+           ^^^^^^^^^
+  File "/usr/local/lib/python3.11/dataclasses.py", line 1222, in wrap
+    return _process_class(cls, init, repr, eq, order, unsafe_hash,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dataclasses.py", line 1027, in _process_class
+    _init_fn(all_init_fields,
+  File "/usr/local/lib/python3.11/dataclasses.py", line 580, in _init_fn
+    return _create_fn('__init__',
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dataclasses.py", line 433, in _create_fn
+    exec(txt, globals, ns)
+  File "<string>", line 0, in <module>
+KeyboardInterrupt
