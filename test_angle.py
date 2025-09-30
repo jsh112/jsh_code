@@ -20,19 +20,27 @@ def point_to_motor_angles(point, O):
 
     return pitch, yaw
 
+def angle_to_pwm(angle, angle_min=-30, angle_max=30, pwm_min=1000, pwm_max=2000):
+    """각도(°)를 PWM(us)로 변환"""
+    # 선형 매핑
+    pwm = pwm_min + (angle - angle_min) * (pwm_max - pwm_min) / (angle_max - angle_min)
+    # PWM 제한
+    pwm = max(pwm_min, min(pwm_max, int(pwm)))
+    return pwm
+
 # 레이저 원점 O
 O = np.array([18.5, -80, -33], dtype=np.float64)
 # point0 = np.array([260.19, -566.05, 3660.13], dtype=np.float64)
 # pitch0, yaw0 = point_to_motor_angles(point0, O)
 # print("Point 0 - Pitch:", pitch0, "Yaw:", yaw0)
 
-points = [
-    np.array([261.45, -558.70, 3612.60]),
-    np.array([497.07,-417.25, 3477.08]),
-    np.array([629.89, 2-.31,3521.27]),
-    np.array([542.01, 239.52, 3659.99])
-]
+# points = [
+#     np.array([261.45, -558.70, 3612.60]),
+#     np.array([497.07,-417.25, 3477.08]),
+#     np.array([629.89, 2-.31,3521.27]),
+#     np.array([542.01, 239.52, 3659.99])
+# ]
 
-for i, pt in enumerate(points):
-    pitch, yaw = point_to_motor_angles(pt, O)
-    print(f"Point {i} -> Pitch: {pitch:.2f}°, Yaw: {yaw:.2f}°")
+# for i, pt in enumerate(points):
+#     pitch, yaw = point_to_motor_angles(pt, O)
+#     print(f"Point {i} -> Pitch: {pitch:.2f}°, Yaw: {yaw:.2f}°")

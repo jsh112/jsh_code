@@ -27,6 +27,7 @@ import argparse
 
 # === MediaPipe 모듈 ===
 from Climb_Mediapipe import PoseTracker, TouchCounter, draw_pose_points
+from test_angle import point_to_motor_angles, angle_to_pwm
 
 # === (NEW) 웹 모듈 - 색상 선택 ===
 _USE_WEB = True
@@ -303,7 +304,7 @@ def xoff_for(side, W, swap):
 
 def send_servo_angles(ctl, yaw_cmd, pitch_cmd):
     try:
-        print(f"[Servo] send: yaw={yaw_cmd:.2f}°, pitch={pitch_cmd:.2f}°")
+        # print(f"[Servo] send: yaw={yaw_cmd:.2f}°, pitch={pitch_cmd:.2f}°")
         ctl.set_angles(pitch_cmd, yaw_cmd)  # (pitch, yaw) 순서
     except Exception as e:
         print(f"[Servo ERROR] {e}")
@@ -451,6 +452,21 @@ def main():
         if not Path(p).exists():
             raise FileNotFoundError(f"파일을 찾을 수 없습니다: {p}")
 
+    # 아두이노 연결
+    import serial
+    import struct
+    import time
+
+    # 아두이노 시리얼 초기화
+    ser = serial.Serial("/dev/ttyUSB0", 115200, timeout=1)
+    time.sleep(2)  # 아두이노 리셋 대기
+
+    def send_servo_angles(yaw_pwm, pitch_pwm):
+        """yaw/pitch PWM 값을 아두이노로 전송"""
+        data = struct.pack('<HH', yaw_pwm, pitch_pwm)  # 2바이트씩 little-endian
+        ser.write(data)
+
+
     # 스테레오 로드
     map1x, map1y, map2x, map2y, P1, P2, size, B, M = load_stereo(NPZ_PATH)
     W, H = size
@@ -524,6 +540,24 @@ def main():
     print(f"[Epipolar check] 평균 Y 오차: {np.mean(y_errors):.2f}px, 최대: {np.max(y_errors):.2f}px")
 
     pts3D = test_triangulate(ptsL, ptsR, P1, P2)
+    # pts3D로 이제 각도 계산
+    for i, point in enumerate(pts3D):
+        # 1. 레이저 원점 기준으로 pitch, yaw 각도 계산
+        pitch_deg, yaw_deg = point_to_motor_angles(point, O)
+    
+        # 2. 각도를 PWM으로 변환
+        pitch_pwm = angle_to_pwm(pitch_deg)
+        yaw_pwm   = angle_to_pwm(yaw_deg)
+        
+        # 3. 값 확인
+        print(f"Point {i}: Pitch={pitch_deg:.2f}° ({pitch_pwm}us), Yaw={yaw_deg:.2f}° ({yaw_pwm}us)")
+        
+        # 4. 아두이노로 전송
+        send_servo_angles(yaw_pwm, pitch_pwm)
+        
+        # 서보가 목표 위치에 도달할 시간을 잠깐 기다릴 수도 있음
+        time.sleep(0.5)
+    
     errs_L, errs_R, reproj_coords = reprojection_error(ptsL, ptsR, pts3D, P1, P2)
     print(f"errs_L is {errs_L}")
     print(f"errs_R is {errs_R}")
@@ -614,13 +648,13 @@ def main():
                 cxR_vis = cxR + W
 
                 # 빨강: 원래 YOLO 중심
-                cv2.circle(vis, (cxL, cyL), 5, (0, 0, 255), -1)       # 좌측
-                cv2.circle(vis, (cxR_vis, cyR), 5, (0, 0, 255), -1)   # 우측
+                cv2.circle(vis, (cxL, cyL), 1, (0, 0, 255), -1)       # 좌측
+                cv2.circle(vis, (cxR_vis, cyR), 1, (0, 0, 255), -1)   # 우측
 
                 # 녹색: 재투영 좌표
                 pxL, pyL, pxR, pyR = reproj_coords[i]  # reprojection_error 또는 직접 계산
-                cv2.circle(vis, (int(pxL), int(pyL)), 6, (0, 255, 0), 2)       # 좌측
-                cv2.circle(vis, (int(pxR) + W, int(pyR)), 6, (0, 255, 0), 2)   # 우측
+                cv2.circle(vis, (int(pxL), int(pyL)), 2, (0, 255, 0), 2)       # 좌측
+                cv2.circle(vis, (int(pxR) + W, int(pyR)), 2, (0, 255, 0), 2)   # 우측
 
                 # ID 텍스트
                 cv2.putText(vis, f"{hid}", (cxL-10, cyL-10),
