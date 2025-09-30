@@ -199,6 +199,78 @@ def report_unmatched_holds(holdsL, holdsR, matches):
     print(f"우측 미매칭 홀드: {len(unmatched_R)}개")
     return unmatched_L, unmatched_R
 
+# ------------------- 1. IOU 계산 -------------------
+def iou_mask(mask1, mask2):
+    """
+    두 바이너리 마스크(mask1, mask2)의 IOU 계산
+    mask1, mask2 : np.uint8 (0/255) 또는 bool
+    """
+    mask1_bool = mask1.astype(bool)
+    mask2_bool = mask2.astype(bool)
+    intersection = np.logical_and(mask1_bool, mask2_bool).sum()
+    union = np.logical_or(mask1_bool, mask2_bool).sum()
+    if union == 0:
+        return 0.0
+    return intersection / union
+
+# ------------------- 2. 좌우 홀드 매칭(IOU 기준) -------------------
+def match_holds_by_iou(holdsL, holdsR, iou_thresh=0.3):
+    """
+    좌/우 홀드를 마스크 IOU 기준으로 매칭
+    - holdsL, holdsR : extract_holds() 결과
+    - iou_thresh : IOU 최소 기준
+    """
+    matches = []
+    used_R = set()
+    for hl in holdsL:
+        best_match = None
+        best_iou = 0
+        maskL = cv2.resize((hl["contour_mask"] if "contour_mask" in hl else contour_to_mask(hl["contour"], hl.get("frame_shape"))),
+                           (hl.get("frame_shape")[1], hl.get("frame_shape")[0])) if "frame_shape" in hl else None
+        for idx, hr in enumerate(holdsR):
+            if idx in used_R: continue
+            maskR = cv2.resize((hr["contour_mask"] if "contour_mask" in hr else contour_to_mask(hr["contour"], hr.get("frame_shape"))),
+                               (hr.get("frame_shape")[1], hr.get("frame_shape")[0])) if "frame_shape" in hr else None
+            iou = iou_mask(maskL, maskR)
+            if iou > best_iou:
+                best_iou = iou
+                best_match = hr
+                best_idx = idx
+        if best_iou >= iou_thresh and best_match is not None:
+            matches.append({"L": hl, "R": best_match, "iou": best_iou})
+            used_R.add(best_idx)
+    return matches
+
+# ------------------- 3. contour -> mask 변환 -------------------
+def contour_to_mask(contour, shape):
+    """
+    단순히 contour를 mask로 변환
+    - contour : cv2 contour
+    - shape : (H,W)
+    """
+    mask = np.zeros(shape, dtype=np.uint8)
+    cv2.drawContours(mask, [contour], -1, 255, -1)
+    return mask
+
+# ------------------- 4. 매칭 결과 시각화 -------------------
+def visualize_matches_iou(frameL, frameR, matches):
+    vis = np.hstack([frameL.copy(), frameR.copy()])
+    W = frameL.shape[1]
+    for m in matches:
+        cxL, cyL = m["L"]["center"]
+        cxR, cyR = m["R"]["center"]
+        color = m["L"].get("color", (255,255,255))
+
+        cv2.circle(vis, (cxL, cyL), 5, color, -1)
+        cv2.putText(vis, "L", (cxL, cyL-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+
+        cv2.circle(vis, (cxR+W, cyR), 5, color, -1)
+        cv2.putText(vis, "R", (cxR+W, cyR-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+
+        cv2.line(vis, (cxL, cyL), (cxR+W, cyR), color, 1)
+    return vis
+
+
 
 # ================== 메인 ==================
 def main():
@@ -214,45 +286,48 @@ def main():
     all_rows = []
 
     while True:
-        ok1,f1 = cap1.read(); ok2,f2 = cap2.read()
+        ok1, f1 = cap1.read(); ok2, f2 = cap2.read()
         if not (ok1 and ok2): break
 
-        Lr = rectify(f1,map1x,map1y,size)
-        Rr = rectify(f2,map2x,map2y,size)
+        Lr = rectify(f1, map1x, map1y, size)
+        Rr = rectify(f2, map2x, map2y, size)
 
         holdsL = extract_holds(Lr, model)
         holdsR = extract_holds(Rr, model)
 
         # ---------------- 좌우 홀드 매칭 테스트 ----------------
-        matches = match_holds_by_proximity(holdsL, holdsR)
-        vis_matches = visualize_matches(Lr, Rr, matches)
-        cv2.imshow("Matches", vis_matches)
-        unmatched_L, unmatched_R = report_unmatched_holds(holdsL, holdsR, matches)
+        for h in holdsL: h["frame_shape"] = Lr.shape[:2]
+        for h in holdsR: h["frame_shape"] = Rr.shape[:2]
+
+        matches = match_holds_by_iou(holdsL, holdsR, iou_thresh=0.3)
+        vis_matches = visualize_matches_iou(Lr, Rr, matches)
+        cv2.imshow("Matches_IOU", vis_matches)
         # -------------------------------------------------------
 
-        # 좌/우 병합 및 인덱스 유지
+        # 좌/우 병합 및 인덱스 유지 (화면 표시용)
         merged_holds = merge_holds_by_center([holdsL, holdsR])
 
         # 화면 표시
-        vis = np.hstack([Lr,Rr])
+        vis = np.hstack([Lr, Rr])
         for h in merged_holds:
-            cx,cy = h["center"]
-            cv2.circle(vis,(cx,cy),4,h["color"],-1)
-            cv2.putText(vis,str(h["hold_index"]),(cx,cy-5),cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,255,255),1)
+            cx, cy = h["center"]
+            cv2.circle(vis, (cx, cy), 4, h["color"], -1)
+            cv2.putText(vis, str(h["hold_index"]), (cx, cy-5),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
-        # 3D 좌표 계산 후 누적
-        for h in merged_holds:
-            hid = h["hold_index"]
-            hR = next((x for x in holdsR if x["center"]==h["center"]), None)
-            if hR:
-                X = triangulate_xy(P1,P2,h["center"],hR["center"])
-                all_rows.append({
-                    "hold_id": hid,
-                    "x_mm": X[0],
-                    "y_mm": X[1],
-                    "z_mm": X[2],
-                    "color": h["class_name"]
-                })
+        # 3D 좌표 계산 후 누적 (IOU 매칭 기준)
+        for m in matches:
+            hl = m["L"]
+            hr = m["R"]
+            hid = hl.get("hold_index", hl.get("center"))  # hold_index 없으면 center로 임시 ID
+            X = triangulate_xy(P1, P2, hl["center"], hr["center"])
+            all_rows.append({
+                "hold_id": hid,
+                "x_mm": X[0],
+                "y_mm": X[1],
+                "z_mm": X[2],
+                "color": hl["class_name"]
+            })
 
         # 누적 CSV 저장
         save_holds_to_csv_cumulative(all_rows, CSV_GRIPS_PATH)
