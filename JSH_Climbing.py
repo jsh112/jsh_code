@@ -458,7 +458,7 @@ def main():
 
     # 레이저 원점 O (LEFT 기준)
     L = np.array([0.0, 0.0, 0.0], dtype=np.float64)
-    dx = -LASER_OFFSET_CM_LEFT * 10.0
+    dx = LASER_OFFSET_CM_LEFT * 10.0
     dy = (-1.0 if Y_UP_IS_NEGATIVE else 1.0) * LASER_OFFSET_CM_UP * 10.0
     dz = LASER_OFFSET_CM_FWD * 10.0
     O  = L + np.array([dx, dy, dz], dtype=np.float64)
