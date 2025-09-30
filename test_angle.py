@@ -22,6 +22,17 @@ def point_to_motor_angles(point, O):
 
 # 레이저 원점 O
 O = np.array([18.5, -80, -33], dtype=np.float64)
-point0 = np.array([260.19, -566.05, 3660.13], dtype=np.float64)
-pitch0, yaw0 = point_to_motor_angles(point0, O)
-print("Point 0 - Pitch:", pitch0, "Yaw:", yaw0)
+# point0 = np.array([260.19, -566.05, 3660.13], dtype=np.float64)
+# pitch0, yaw0 = point_to_motor_angles(point0, O)
+# print("Point 0 - Pitch:", pitch0, "Yaw:", yaw0)
+
+points = [
+    np.array([260.19, -566.05, 3660.13]),
+    np.array([143.58, -405.71, 3161.13]),
+    np.array([276.53,  38.96, 3197.47]),
+    np.array([160.82, 270.95, 3351.58])
+]
+
+for i, pt in enumerate(points):
+    pitch, yaw = point_to_motor_angles(pt, O)
+    print(f"Point {i} -> Pitch: {pitch:.2f}°, Yaw: {yaw:.2f}°")
