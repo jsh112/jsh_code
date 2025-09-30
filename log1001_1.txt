@@ -1,0 +1,52 @@
+[Info] image_size=(640, 480), baseline~357.00 mm
+[Laser] Origin O (mm, LEFT-based) = [      -18.5         -80         -33]
+[Info] Color filter: all
+[Init] First 3 frames: YOLO seg & merge ...
+
+0: 480x640 1 Hold_Black, 4 Hold_Greens, 2 Hold_Pinks, 1 Hold_Purple, 1 Hold_Red, 3 Hold_Yellows, 1888.1ms
+Speed: 14.6ms preprocess, 1888.1ms inference, 49.2ms postprocess per image at shape (1, 3, 480, 640)
+
+0: 480x640 2 Hold_Blacks, 5 Hold_Greens, 2 Hold_Pinks, 1 Hold_Purple, 1 Hold_Red, 3 Hold_Yellows, 1453.5ms
+Speed: 4.8ms preprocess, 1453.5ms inference, 58.0ms postprocess per image at shape (1, 3, 480, 640)
+  - frame 1/3: L=4  R=5
+
+0: 480x640 1 Hold_Black, 4 Hold_Greens, 2 Hold_Pinks, 1 Hold_Purple, 1 Hold_Red, 3 Hold_Yellows, 1438.9ms
+Speed: 4.6ms preprocess, 1438.9ms inference, 50.1ms postprocess per image at shape (1, 3, 480, 640)
+
+0: 480x640 2 Hold_Blacks, 4 Hold_Greens, 2 Hold_Pinks, 1 Hold_Purple, 1 Hold_Red, 3 Hold_Yellows, 1525.1ms
+Speed: 5.0ms preprocess, 1525.1ms inference, 51.7ms postprocess per image at shape (1, 3, 480, 640)
+  - frame 2/3: L=4  R=4
+
+0: 480x640 1 Hold_Black, 1 Hold_Blue, 4 Hold_Greens, 2 Hold_Pinks, 1 Hold_Purple, 1 Hold_Red, 3 Hold_Yellows, 1439.9ms
+Speed: 4.6ms preprocess, 1439.9ms inference, 41.5ms postprocess per image at shape (1, 3, 480, 640)
+
+0: 480x640 2 Hold_Blacks, 4 Hold_Greens, 2 Hold_Pinks, 1 Hold_Purple, 1 Hold_Red, 3 Hold_Yellows, 1433.3ms
+Speed: 4.7ms preprocess, 1433.3ms inference, 44.5ms postprocess per image at shape (1, 3, 480, 640)
+  - frame 3/3: L=4  R=4
+[Info] 공통 홀드 개수: 4
+ptsL is [[        320         116]
+ [        380         145]
+ [        412         256]
+ [        382         309]]
+ptsR is [[        232         125]
+ [        292         154]
+ [        325         262]
+ [        299         316]]
+[Epipolar check] 평균 Y 오차: 7.75px, 최대: 9.00px
+Point 0: X=-99.85 mm, Y=-523.38 mm, Z=3161.27 mm
+Point 1: X=143.58 mm, Y=-405.71 mm, Z=3161.13 mm
+Point 2: X=276.53 mm, Y=38.96 mm, Z=3197.47 mm
+Point 3: X=160.82 mm, Y=270.95 mm, Z=3351.58 mm
+Point 0: errL=4.50px, errR=4.50px
+Point 1: errL=4.50px, errR=4.50px
+Point 2: errL=3.00px, errR=3.00px
+Point 3: errL=3.50px, errR=3.50px
+[Summary] Avg error: Left=3.87px, Right=3.88px
+errs_L is [np.float64(4.49581444872779), np.float64(4.496725606991406), np.float64(3.0001406566439646), np.float64(3.5012641464867027)]
+errs_R is [np.float64(4.504185834674134), np.float64(4.503274991640418), np.float64(2.99986000207646), np.float64(3.498736173246723)]
+[Saved] Reprojected right image -> right_reproj.png
+[ΔAngles] (hold_index order):
+  0->1: Δyaw=+4.36°, Δpitch=-2.08°, angle=4.81°
+  1->2: Δyaw=+2.31°, Δpitch=-7.92°, angle=8.25°
+  2->3: Δyaw=-2.19°, Δpitch=-3.81°, angle=4.39°
+hi
