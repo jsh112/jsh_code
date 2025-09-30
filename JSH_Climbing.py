@@ -388,6 +388,36 @@ def reprojection_error(ptsL, ptsR, pts3D, P1, P2):
     print(f"[Summary] Avg error: Left={np.mean(errs_L):.2f}px, Right={np.mean(errs_R):.2f}px")
     return errs_L, errs_R, reproj_coords
 
+def angle_to_pwm(angle_deg, min_ms=1.0, max_ms=2.0, min_deg=0, max_deg=180):
+    ms = min_ms + (angle_deg - min_deg) * (max_ms - min_ms) / (max_deg - min_deg)
+    return ms
+
+def save_reproj_right_image(f_right, map2x, map2y, size, reproj_coords, common_ids, filename="reproj_right.png"):
+    """
+    우측 카메라에 재투영한 3D 좌표를 이미지에 점으로 표시하고 PNG로 저장.
+
+    Args:
+        f_right (np.ndarray): 우측 원본 프레임
+        map2x, map2y: 우측 카메라 rectification 맵
+        size (tuple): (W, H) 이미지 크기
+        reproj_coords (list of tuples): (pxL, pyL, pxR, pyR) 재투영 좌표 리스트
+        common_ids (list): 홀드 ID 리스트 (reproj_coords 순서와 동일)
+        filename (str): 저장할 PNG 파일 이름
+    """
+    W, H = size
+    # 우측 이미지 rectification
+    vis_right = rectify(f_right, map2x, map2y, size).copy()
+
+    # 각 점 표시
+    for i, hid in enumerate(common_ids):
+        _, _, pxR, pyR = reproj_coords[i]
+        cv2.circle(vis_right, (int(pxR), int(pyR)), 6, (0,0,255), -1)       # 빨강 점
+        cv2.putText(vis_right, f"{hid}", (int(pxR)+5, int(pyR)-5),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1, cv2.LINE_AA)
+
+    # 이미지 저장
+    cv2.imwrite(filename, vis_right)
+    print(f"[Saved] Reprojected right image -> {filename}")
 
 # ---------- 장세환의 추가 코드 --------------
 # ---------- 메인 ----------
@@ -470,6 +500,10 @@ def main():
     errs_L, errs_R, reproj_coords = reprojection_error(ptsL, ptsR, pts3D, P1, P2)
     print(f"errs_L is {errs_L}")
     print(f"errs_R is {errs_R}")
+
+    ok2, f2 = cap2.read()  # 우측 카메라 프레임
+    save_reproj_right_image(f2, map2x, map2y, size, reproj_coords, common_ids, filename="right_reproj.png")
+
     
     # 3D/각도 계산
     matched_results = []
