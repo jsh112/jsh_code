@@ -92,7 +92,8 @@ except Exception:
     HAS_SERVO = False
     class DualServoController:
         def __init__(self, *a, **k): print("[Servo] (stub) controller unavailable")
-        def set_angles(self, pitch=None, yaw=None): print(f"[Servo] (stub) set_angles: P={pitch}, Y={yaw}")
+        def set_angles(self, pitch=None, yaw=None): 
+            print(f"[Servo] (stub) set_angles: P={pitch}, Y={yaw}")
         def center(self): print("[Servo] (stub) center")
         def query(self): print("[Servo] (stub) query"); return ""
         def laser_on(self): print("[Servo] (stub) laser_on")
