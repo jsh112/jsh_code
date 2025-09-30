@@ -84,6 +84,18 @@ PITCH_SIGN     = +1.0   # 반대로 가면 -1.0
 YAW_SCALE      = 1.0    # 필요시 감도 미세조정
 PITCH_SCALE    = 1.0
 
+# ==== 색상 맵 ====
+COLOR_MAP = {
+    'Hold_Red':(0,0,255),'Hold_Orange':(0,165,255),'Hold_Yellow':(0,255,255),
+    'Hold_Green':(0,255,0),'Hold_Blue':(255,0,0),'Hold_Purple':(204,50,153),
+    'Hold_Pink':(203,192,255),'Hold_Lime':(50,255,128),'Hold_Sky':(255,255,0),
+    'Hold_White':(255,255,255),'Hold_Black':(30,30,30),'Hold_Gray':(150,150,150),
+}
+ALL_COLORS = {
+    'red':'Hold_Red','orange':'Hold_Orange','yellow':'Hold_Yellow','green':'Hold_Green',
+    'blue':'Hold_Blue','purple':'Hold_Purple','pink':'Hold_Pink','white':'Hold_White',
+    'black':'Hold_Black','gray':'Hold_Gray','lime':'Hold_Lime','sky':'Hold_Sky',
+}
 # ======== Servo controller import (stub fallback) ========
 try:
     from servo_control import DualServoController
@@ -99,18 +111,6 @@ except Exception:
         def laser_off(self): print("[Servo] (stub) laser_off")
         def close(self): pass
 
-# ==== 색상 맵 ====
-COLOR_MAP = {
-    'Hold_Red':(0,0,255),'Hold_Orange':(0,165,255),'Hold_Yellow':(0,255,255),
-    'Hold_Green':(0,255,0),'Hold_Blue':(255,0,0),'Hold_Purple':(204,50,153),
-    'Hold_Pink':(203,192,255),'Hold_Lime':(50,255,128),'Hold_Sky':(255,255,0),
-    'Hold_White':(255,255,255),'Hold_Black':(30,30,30),'Hold_Gray':(150,150,150),
-}
-ALL_COLORS = {
-    'red':'Hold_Red','orange':'Hold_Orange','yellow':'Hold_Yellow','green':'Hold_Green',
-    'blue':'Hold_Blue','purple':'Hold_Purple','pink':'Hold_Pink','white':'Hold_White',
-    'black':'Hold_Black','gray':'Hold_Gray','lime':'Hold_Lime','sky':'Hold_Sky',
-}
 
 def _sanitize_label(s: str) -> str:
     return "".join(ch for ch in s.lower() if ch.isalnum() or ch in ("_", "-"))
