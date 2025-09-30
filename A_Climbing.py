@@ -38,8 +38,8 @@ except Exception:
         raise RuntimeError("color_web 모듈(A_web)이 로드되지 않았습니다.")
 
 # ========= 사용자 환경 경로 =========
-NPZ_PATH       = r"/home/jojang/Desktop/climbing/stereo_params_scaled.npz"
-MODEL_PATH     = r"/home/jojang/Desktop/climbing/best_5.pt"
+NPZ_PATH       = r"/home/jsh/Desktop/JSH_CODE/jsh_code/stereo_params_scaled.npz"
+MODEL_PATH     = r"/home/jsh/Desktop/JSH_CODE/jsh_code/best_5.pt"
 
 CAM1_INDEX     = 0   # 왼쪽 카메라
 CAM2_INDEX     = 1   # 오른쪽 카메라
