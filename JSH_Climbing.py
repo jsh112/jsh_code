@@ -416,16 +416,9 @@ def main():
     ptsR = np.array([idxR[hid]["center"] for hid in common_ids], dtype=np.float32)
 
     # 2. Fundamental matrix 계산 (테스트용)
-    F, mask = cv2.findFundamentalMat(ptsL, ptsR, cv2.FM_RANSAC)
-    print(f"F matrix is {F}\n\n")
-    print(f"mask is {mask}\n\n")
-
-    # 3. 에피폴라 라인 시각화
-    # 마지막으로 캡쳐한 초기 frame 사용
-    Lr_test = rectify(f1, map1x, map1y, size)
-    Rr_test = rectify(f2, map2x, map2y, size)
-    # 3. 에피폴라 라인 시각화
-    Lr_show, Rr_show = draw_epipolar_lines(Lr_test, Rr_test, ptsL, ptsR, F)
+    # 좌우 수평 오차 계산 (Fundamental matrix 없이)
+    y_errors = np.abs(ptsL[:,1] - ptsR[:,1])
+    print(f"[Epipolar check] 평균 Y 오차: {np.mean(y_errors):.2f}px, 최대: {np.max(y_errors):.2f}px")
 
     # 홀드 겹쳐서 그리기
     Lr_show = draw_holds_on_image(Lr_show, holdsL, filled_ids=filled_ids)
