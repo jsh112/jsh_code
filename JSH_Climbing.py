@@ -195,7 +195,7 @@ def main():
     map1x,map1y,map2x,map2y,P1,P2,size = load_stereo(NPZ_PATH)
     W,H = size
     cap1,cap2 = open_cams(CAM1_INDEX,CAM2_INDEX,size)
-    model = YOLO(str(MODEL_PATH), device="cuda")
+    model = YOLO(str(MODEL_PATH))
     cv2.namedWindow("Stereo YOLO 3D", cv2.WINDOW_NORMAL)
 
     rows = []
