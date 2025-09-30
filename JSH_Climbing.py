@@ -308,6 +308,42 @@ def send_servo_angles(ctl, yaw_cmd, pitch_cmd):
     except Exception as e:
         print(f"[Servo ERROR] {e}")
 
+# ---------- 장세환의 추가 코드 --------------
+def draw_epipolar_lines(img1, img2, pts1, pts2, F):
+    """ pts1: Nx2 좌표 (왼쪽 이미지 점들)
+        pts2: Nx2 좌표 (오른쪽 이미지 점들)
+        F: Fundamental matrix
+    """
+    img1 = img1.copy()
+    img2 = img2.copy()
+
+    # 왼쪽 점 → 오른쪽 이미지에 라인
+    lines1 = cv2.computeCorrespondEpilines(pts2.reshape(-1,1,2), 2, F)
+    lines1 = lines1.reshape(-1,3)
+
+    for r,pt1,pt2 in zip(lines1, pts1, pts2):
+        color = tuple(np.random.randint(0,255,3).tolist())
+        x0,y0 = map(int, [0, -r[2]/r[1]])
+        x1,y1 = map(int, [img2.shape[1], -(r[2]+r[0]*img2.shape[1])/r[1]])
+        img2 = cv2.line(img2, (x0,y0), (x1,y1), color,1)
+        img1 = cv2.circle(img1, tuple(pt1.astype(int)),5,color,-1)
+        img2 = cv2.circle(img2, tuple(pt2.astype(int)),5,color,-1)
+
+    return img1, img2
+
+def draw_holds_on_image(img, holds, x_offset=0, filled_ids=set()):
+    img = img.copy()
+    for h in holds:
+        cnt_shifted = h["contour"] + np.array([[[x_offset,0]]], dtype=h["contour"].dtype)
+        if h["hold_index"] in filled_ids:
+            overlay = img.copy()
+            cv2.drawContours(overlay, [cnt_shifted], -1, h["color"], -1)
+            img = cv2.addWeighted(overlay, 0.45, img, 0.55, 0)
+        cv2.drawContours(img, [cnt_shifted], -1, h["color"], 2)
+        cx, cy = h["center"]
+        cv2.circle(img, (cx+x_offset, cy), 4, (255,255,255), -1)
+    return img
+# ---------- 장세환의 추가 코드 --------------
 # ---------- 메인 ----------
 
 def main():
@@ -374,50 +410,80 @@ def main():
         return
     print(f"[Info] 공통 홀드 개수: {len(common_ids)}")
 
-    # 3D/각도 계산
-    matched_results = []
-    for hid in common_ids:
-        Lh = idxL[hid]; Rh = idxR[hid]
-        X = triangulate_xy(P1, P2, Lh["center"], Rh["center"])
-        d_left  = float(np.linalg.norm(X - L))
-        d_line  = float(np.hypot(X[1], X[2]))
-        yaw_deg, pitch_deg = yaw_pitch_from_X(X, O, Y_UP_IS_NEGATIVE)
-        matched_results.append({
-            "hid": hid, "color": Lh["color"],
-            "X": X, "d_left": d_left, "d_line": d_line,
-            "yaw_deg": yaw_deg, "pitch_deg": pitch_deg,
-        })
+    # 1. 좌표 추출
+    ptsL = np.array([idxL[hid]["center"] for hid in common_ids], dtype=np.float32)
+    ptsR = np.array([idxR[hid]["center"] for hid in common_ids], dtype=np.float32)
 
-    # ===== Delta 테이블 (순서=hold_index 순) =====
-    by_id  = {mr["hid"]: mr for mr in matched_results}
-    route_ids = sorted(by_id.keys())
-    next_id_map   = {}
-    delta_from_id = {}
-    angle_deltas  = []
+    # 2. Fundamental matrix 계산 (테스트용)
+    F, _ = cv2.findFundamentalMat(ptsL, ptsR, cv2.FM_8POINT)
 
-    for i in range(len(route_ids)-1):
-        a_id, b_id = route_ids[i], route_ids[i+1]
-        a, b = by_id[a_id], by_id[b_id]
-        dyaw   = wrap_deg(b["yaw_deg"]   - a["yaw_deg"])
-        dpitch = wrap_deg(b["pitch_deg"] - a["pitch_deg"])
-        v1 = a["X"] - O; v2 = b["X"] - O
-        d3d = angle_between(v1, v2)
-        angle_deltas.append((a_id, b_id, dyaw, dpitch, d3d))
-        next_id_map[a_id]   = b_id
-        delta_from_id[a_id] = (dyaw, dpitch)
+    # 3. 에피폴라 라인 시각화
+    # 마지막으로 캡쳐한 초기 frame 사용
+    Lr_test = rectify(f1, map1x, map1y, size)
+    Rr_test = rectify(f2, map2x, map2y, size)
+    # 3. 에피폴라 라인 시각화
+    Lr_show, Rr_show = draw_epipolar_lines(Lr_test, Rr_test, ptsL, ptsR, F)
 
-    print("[ΔAngles] (hold_index order):")
-    for a_id, b_id, dyaw, dpitch, d3d in angle_deltas:
-        print(f"  {a_id}->{b_id}: Δyaw={dyaw:+.2f}°, Δpitch={dpitch:+.2f}°, angle={d3d:.2f}°")
+    # 홀드 겹쳐서 그리기
+    Lr_show = draw_holds_on_image(Lr_show, holdsL, filled_ids=filled_ids)
+    Rr_show = draw_holds_on_image(Rr_show, holdsR, filled_ids=filled_ids)
+
+    # 좌우 수평 오차 출력
+    y_errors = np.abs(ptsL[:,1] - ptsR[:,1])
+    print(f"[Epipolar check] 평균 Y 오차: {np.mean(y_errors):.2f}px, 최대: {np.max(y_errors):.2f}px")
+
+    cv2.imshow("Left Epipolar + Holds", Lr_show)
+    cv2.imshow("Right Epipolar + Holds", Rr_show)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+
+    
+    # # 3D/각도 계산
+    # matched_results = []
+    # for hid in common_ids:
+    #     Lh = idxL[hid]; Rh = idxR[hid]
+    #     X = triangulate_xy(P1, P2, Lh["center"], Rh["center"])
+    #     d_left  = float(np.linalg.norm(X - L))
+    #     d_line  = float(np.hypot(X[1], X[2]))
+    #     yaw_deg, pitch_deg = yaw_pitch_from_X(X, O, Y_UP_IS_NEGATIVE)
+    #     matched_results.append({
+    #         "hid": hid, "color": Lh["color"],
+    #         "X": X, "d_left": d_left, "d_line": d_line,
+    #         "yaw_deg": yaw_deg, "pitch_deg": pitch_deg,
+    #     })
+
+    # # ===== Delta 테이블 (순서=hold_index 순) =====
+    # by_id  = {mr["hid"]: mr for mr in matched_results}
+    # route_ids = sorted(by_id.keys())
+    # next_id_map   = {}
+    # delta_from_id = {}
+    # angle_deltas  = []
+
+    # for i in range(len(route_ids)-1):
+    #     a_id, b_id = route_ids[i], route_ids[i+1]
+    #     a, b = by_id[a_id], by_id[b_id]
+    #     dyaw   = wrap_deg(b["yaw_deg"]   - a["yaw_deg"])
+    #     dpitch = wrap_deg(b["pitch_deg"] - a["pitch_deg"])
+    #     v1 = a["X"] - O; v2 = b["X"] - O
+    #     d3d = angle_between(v1, v2)
+    #     angle_deltas.append((a_id, b_id, dyaw, dpitch, d3d))
+    #     next_id_map[a_id]   = b_id
+    #     delta_from_id[a_id] = (dyaw, dpitch)
+
+    # print("[ΔAngles] (hold_index order):")
+    # for a_id, b_id, dyaw, dpitch, d3d in angle_deltas:
+    #     print(f"  {a_id}->{b_id}: Δyaw={dyaw:+.2f}°, Δpitch={dpitch:+.2f}°, angle={d3d:.2f}°")
+    
 
     # ===== Servo 초기화 & 초기 조준 =====
     # ctl = DualServoController() if not HAS_SERVO else DualServoController(args.port, args.baud)
-    current_target_id = route_ids[0]
-    mr0 = by_id[current_target_id]
-    yaw_cmd0, pitch_cmd0 = to_servo_cmd(mr0["yaw_deg"], mr0["pitch_deg"])
-    cur_yaw, cur_pitch = yaw_cmd0, pitch_cmd0
-    # ctl.set_angles(cur_pitch, cur_yaw)
-    auto_advance_enabled = True
+    # current_target_id = route_ids[0]
+    # mr0 = by_id[current_target_id]
+    # yaw_cmd0, pitch_cmd0 = to_servo_cmd(mr0["yaw_deg"], mr0["pitch_deg"])
+    # cur_yaw, cur_pitch = yaw_cmd0, pitch_cmd0
+    # # ctl.set_angles(cur_pitch, cur_yaw)
+    # auto_advance_enabled = True
 
     # ==== MediaPipe Pose ====
     #pose = PoseTracker(min_detection_confidence=0.5, model_complexity=1)
@@ -455,11 +521,11 @@ def main():
                     cx, cy = h["center"]
                     cv2.circle(vis, (cx+xoff, cy), 4, (255,255,255), -1)
                     tag = f"ID:{h['hold_index']}"
-                    if h["hold_index"] == current_target_id: tag = "[TARGET] " + tag
-                    cv2.putText(vis, tag, (cx+xoff-10, cy+26),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,0,0), 3, cv2.LINE_AA)
-                    cv2.putText(vis, tag, (cx+xoff-10, cy+26),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, h["color"], 2, cv2.LINE_AA)
+                    # if h["hold_index"] == current_target_id: tag = "[TARGET] " + tag
+                    # cv2.putText(vis, tag, (cx+xoff-10, cy+26),
+                    #             cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,0,0), 3, cv2.LINE_AA)
+                    # cv2.putText(vis, tag, (cx+xoff-10, cy+26),
+                    #             cv2.FONT_HERSHEY_SIMPLEX, 0.6, h["color"], 2, cv2.LINE_AA)
 
             # # MediaPipe
             # coords = pose.process(Lr)
