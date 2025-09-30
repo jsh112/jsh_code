@@ -11,7 +11,7 @@ def point_to_motor_angles(point, O):
 
     # Pitch: 좌우 회전 (모터 기준: 좌+)
     # 좌표계 X가 오른쪽, Z가 앞으로 → 좌회전 +PWM, 우회전 -PWM
-    pitch = -np.degrees(np.arctan2(vec[0], vec[2]))  # X/Z
+    pitch = np.degrees(np.arctan2(vec[0], vec[2]))  # X/Z
     # 모터 방향과 반대면 부호 반전 필요 시: pitch = -pitch
 
     # Yaw: 상하 회전 (모터 기준: 위+)
@@ -19,15 +19,27 @@ def point_to_motor_angles(point, O):
     yaw = np.degrees(np.arctan2(-vec[1], np.sqrt(vec[0]**2 + vec[2]**2)))
 
     return pitch, yaw
-
-def angle_to_pwm(angle_deg, min_angle=-30, max_angle=30, min_pwm=1000, max_pwm=2000):
-    # angle → PWM linear mapping
-    angle_deg = max(min_angle, min(max_angle, angle_deg))  # clamp
-    pwm = (angle_deg - min_angle) / (max_angle - min_angle) * (max_pwm - min_pwm) + min_pwm
-    return int(round(pwm))
 # 레이저 원점 O
-# O = np.array([18.5, -80, -33], dtype=np.float64)
-# point0 = np.array([260.19, -566.05, 3660.13], dtype=np.float64)
+O = np.array([18.5, -80, -33], dtype=np.float64)
+point0 = np.array([279.99, -558.70, 3612.58], dtype=np.float64)
+
+# PWM 변환 (하드코딩 테스트용)
+def angles_to_pwm(pitch_deg, yaw_deg, k_pitch=12, k_yaw=12, center=1500):
+    pwm_pitch = int(center + pitch_deg * k_pitch)
+    pwm_yaw   = int(center + yaw_deg * k_yaw)
+    
+    # 서보 제한
+    pwm_pitch = max(1200, min(1800, pwm_pitch))
+    pwm_yaw   = max(1200, min(1800, pwm_yaw))
+    return pwm_pitch, pwm_yaw
+
+# 계산
+pitch_deg, yaw_deg = point_to_motor_angles(point0, O)
+pwm_pitch, pwm_yaw = angles_to_pwm(pitch_deg, yaw_deg)
+
+print(f"Pitch={pitch_deg:.2f}°, Yaw={yaw_deg:.2f}°")
+print(f"PWM -> Pitch={pwm_pitch}us, Yaw={pwm_yaw}us")
+
 # pitch0, yaw0 = point_to_motor_angles(point0, O)
 # print("Point 0 - Pitch:", pitch0, "Yaw:", yaw0)
 

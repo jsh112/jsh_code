@@ -27,7 +27,7 @@ import argparse
 
 # === MediaPipe 모듈 ===
 from Climb_Mediapipe import PoseTracker, TouchCounter, draw_pose_points
-from test_angle import point_to_motor_angles, angle_to_pwm
+from test_angle import point_to_motor_angles
 
 # === (NEW) 웹 모듈 - 색상 선택 ===
 _USE_WEB = True
@@ -449,17 +449,6 @@ def main():
     # 아두이노 시리얼 초기화
     ser = serial.Serial("/dev/ttyUSB0", 115200, timeout=1)
     time.sleep(2)  # 아두이노 리셋 대기
-
-    def send_servo_angles(yaw_angle, pitch_angle):
-        """yaw/pitch 각도를 받아 아두이노 PWM으로 전송"""
-        # 각도를 PWM으로 변환
-        yaw_pwm   = angle_to_pwm(yaw_angle, min_angle=-15, max_angle=15, min_pwm=1200, max_pwm=1800)
-        pitch_pwm = angle_to_pwm(pitch_angle, min_angle=-15, max_angle=15, min_pwm=1200, max_pwm=1800)
-
-        # 2바이트씩 little-endian 전송
-        data = yaw_pwm.to_bytes(2, 'little') + pitch_pwm.to_bytes(2, 'little')
-        ser.write(data)
-        print(f"[Servo] Yaw_PWM={yaw_pwm}us, Pitch_PWM={pitch_pwm}us")
     
     # 스테레오 로드
     map1x, map1y, map2x, map2y, P1, P2, size, B, M = load_stereo(NPZ_PATH)
@@ -538,16 +527,11 @@ def main():
     for i, point in enumerate(pts3D):
         # 1. 레이저 원점 기준으로 pitch, yaw 각도 계산
         pitch_deg, yaw_deg = point_to_motor_angles(point, O)
-    
-        # 실제 각도 범위로 clamp
-        pitch_pwm = angle_to_pwm(pitch_deg, min_angle=-10, max_angle=0, min_pwm=1000, max_pwm=2000)
-        yaw_pwm   = angle_to_pwm(yaw_deg,   min_angle=-5,  max_angle=8, min_pwm=1000, max_pwm=2000)
 
         
         # 3. 값 확인
         print(f"Point {i}: Pitch={pitch_deg:.2f}° ({pitch_pwm}us), Yaw={yaw_deg:.2f}° ({yaw_pwm}us)")
         
-        send_servo_angles(yaw_pwm, pitch_pwm)
         # 서보가 목표 위치에 도달할 시간을 잠깐 기다릴 수도 있음
         time.sleep(0.5)
     
