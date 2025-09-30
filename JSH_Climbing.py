@@ -207,35 +207,6 @@ def extract_holds_with_indices(frame_bgr, model, selected_class_name=None,
         if M["m00"] == 0: continue
         cx = int(M["m10"]/M["m00"]); cy = int(M["m01"]/M["m00"])
         holds.append({"class_name": class_name, "color": COLOR_MAP.get(class_name,(255,255,255)),
-<<<<<<< HEAD
-                      "contour": contour, "center": (cx,cy), "conf": conf})
-    return holds
-
-def match_holds(holdsL, holdsR, max_dist_px=30, row_tol=30):
-    matched_pairs = []
-    used_R = set()
-    for Lh in holdsL:
-        best_R = None
-        best_dist = max_dist_px
-        for i,Rh in enumerate(holdsR):
-            if i in used_R: continue
-            if abs(Lh["center"][1]-Rh["center"][1]) > row_tol: continue
-            dist = np.linalg.norm(np.array(Lh["center"]) - np.array(Rh["center"]))
-            if dist < best_dist:
-                best_dist = dist
-                best_R = (i,Rh)
-        if best_R:
-            idx,Rh = best_R
-            used_R.add(idx)
-            matched_pairs.append((Lh,Rh))
-    return matched_pairs
-
-def triangulate_xy(P1,P2,ptL,ptR):
-    xl = np.array(ptL,dtype=np.float64).reshape(2,1)
-    xr = np.array(ptR,dtype=np.float64).reshape(2,1)
-    Xh = cv2.triangulatePoints(P1,P2,xl,xr)
-    X = (Xh[:3]/Xh[3]).reshape(3)
-=======
                       "contour": contour, "center": (cx, cy), "conf": conf})
     if not holds: return []
     enriched = [{"cx": h_["center"][0], "cy": h_["center"][1], **h_} for h_ in holds]
@@ -297,7 +268,6 @@ def triangulate_xy(P1, P2, ptL, ptR):
     xr = np.array(ptR, dtype=np.float64).reshape(2,1)
     Xh = cv2.triangulatePoints(P1, P2, xl, xr)
     X  = (Xh[:3] / Xh[3]).reshape(3)  # [X,Y,Z] (mm)
->>>>>>> ad2e29bd62bc20d62f3e04ce5ecd3a35b768e35a
     return X
 
 def draw_grid(img):
