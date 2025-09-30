@@ -453,8 +453,8 @@ def main():
     def send_servo_angles(yaw_angle, pitch_angle):
         """yaw/pitch 각도를 받아 아두이노 PWM으로 전송"""
         # 각도를 PWM으로 변환
-        yaw_pwm   = angle_to_pwm(yaw_angle, min_angle=-15, max_angle=15, min_pwm=1000, max_pwm=2000)
-        pitch_pwm = angle_to_pwm(pitch_angle, min_angle=-15, max_angle=15, min_pwm=1000, max_pwm=2000)
+        yaw_pwm   = angle_to_pwm(yaw_angle, min_angle=-15, max_angle=15, min_pwm=1200, max_pwm=1800)
+        pitch_pwm = angle_to_pwm(pitch_angle, min_angle=-15, max_angle=15, min_pwm=1200, max_pwm=1800)
 
         # 2바이트씩 little-endian 전송
         data = yaw_pwm.to_bytes(2, 'little') + pitch_pwm.to_bytes(2, 'little')
