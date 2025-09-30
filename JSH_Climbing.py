@@ -193,6 +193,70 @@ def save_holds_to_csv(rows, csv_path="grip_records.csv"):
     except Exception as e:
         print(f"CSV 저장 실패: {e}")
 
+import csv
+
+def format_row_fixed_width(row, widths=(10,10,10,10,15)):
+    """
+    딕셔너리 row를 고정폭 문자열로 변환
+    widths: (hold_id, x_mm, y_mm, z_mm, color) 각 열 너비
+    """
+    return f"{str(row['hold_id']).rjust(widths[0])}" \
+           f"{row['x_mm']:>{widths[1]}.1f}" \
+           f"{row['y_mm']:>{widths[2]}.1f}" \
+           f"{row['z_mm']:>{widths[3]}.1f}" \
+           f"{row['color']:>{widths[4]}}"
+
+def save_holds_to_csv_real_time(rows, csv_path="grip_records.csv"):
+    """
+    실시간 CSV 저장
+    - 중복 hold_id 제거 (가장 최근 데이터만 저장)
+    - 고정폭 포맷으로 기록
+    """
+    if not rows:
+        return
+
+    # 중복 제거: hold_id 기준, 마지막 값이 남도록
+    unique = {}
+    for r in rows:
+        unique[r["hold_id"]] = r
+    unique_rows = [v for k,v in sorted(unique.items())]  # hold_id 순 정렬
+
+    # CSV 저장
+    try:
+        with open(csv_path, mode="w", newline="") as f:
+            # 헤더
+            header = format_row_fixed_width({
+                "hold_id":"hold_id","x_mm":"x_mm","y_mm":"y_mm","z_mm":"z_mm","color":"color"
+            })
+            f.write(header + "\n")
+
+            # 데이터
+            for r in unique_rows:
+                f.write(format_row_fixed_width(r) + "\n")
+    except Exception as e:
+        print(f"CSV 저장 실패: {e}")
+
+def save_holds_to_csv_cumulative(cumulative_rows, csv_path="grip_records.csv"):
+    """
+    누적 기록을 CSV로 저장 (고정폭 포맷)
+    - cumulative_rows: 프레임별로 누적된 모든 rows
+    """
+    if not cumulative_rows:
+        return
+
+    header_fmt = "{:<8} {:>10} {:>10} {:>10} {:<15}"
+    row_fmt    = "{:<8} {:>10.1f} {:>10.1f} {:>10.1f} {:<15}"
+
+    try:
+        with open(csv_path, "w") as f:
+            f.write(header_fmt.format("hold_id","x_mm","y_mm","z_mm","color") + "\n")
+            for r in cumulative_rows:
+                f.write(row_fmt.format(r["hold_id"], r["x_mm"], r["y_mm"], r["z_mm"], r["color"]) + "\n")
+    except Exception as e:
+        print(f"CSV 저장 실패: {e}")
+
+all_rows = []
+
 # ====== 메인 ======
 def main():
     # 카메라 관련
@@ -203,8 +267,6 @@ def main():
     cap1,cap2 = open_cams(CAM1_INDEX,CAM2_INDEX,size)
     model = YOLO(str(MODEL_PATH))
     cv2.namedWindow("Stereo YOLO 3D", cv2.WINDOW_NORMAL)
-
-    rows = []
 
     while True:
         ok1,f1 = cap1.read(); ok2,f2 = cap2.read()
@@ -225,28 +287,23 @@ def main():
                 cx,cy = h["center"]
                 cv2.circle(vis,(cx+xoff,cy),4,(255,255,255),-1)
 
-        # 3D 좌표 계산 + 화면에 표시 + 실시간 CSV 저장
+        # 3D 좌표 계산 후
+        rows = []
         for hL in holdsL:
-            hid = hL["hold_index"]
-            hR = next((x for x in holdsR if x["hold_index"] == hid), None)
+            hR = next((x for x in holdsR if x["hold_index"] == hL["hold_index"]), None)
             if hR:
                 X = triangulate_xy(P1, P2, hL["center"], hR["center"])
-                # 터미널 출력
-                print(f"ID {hid}  X={X[0]:.1f}, Y={X[1]:.1f}, Z={X[2]:.1f} mm  Color={hL['class_name']}")
-                # 화면 표시
-                cx, cy = hL["center"]
-                cv2.putText(vis, f"ID{hid}", (cx, cy-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1)
-                # CSV 기록용
                 rows.append({
-                    "hold_id": hid,
+                    "hold_id": hL["hold_index"],
                     "x_mm": X[0],
                     "y_mm": X[1],
                     "z_mm": X[2],
                     "color": hL["class_name"]
                 })
+        all_rows.extend(rows)  # 누적
+        # 실시간 저장
+        save_holds_to_csv_real_time(all_rows, CSV_GRIPS_PATH)
 
-        # --- 여기서 실시간 저장 ---
-        save_holds_to_csv(rows, CSV_GRIPS_PATH)
 
         # 화면 표시
         cv2.imshow("Stereo YOLO 3D", vis)
