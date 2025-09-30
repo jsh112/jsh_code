@@ -174,6 +174,19 @@ def save_holds_3d_to_csv(holdsL, holdsR, P1, P2, csv_path):
 
     return rows
 
+def save_holds_to_csv(rows, csv_path=CSV_GRIPS_PATH):
+    """현재까지 기록된 홀드 3D 좌표를 CSV로 저장"""
+    if not rows:
+        return
+    fieldnames = ["hold_id", "x_mm", "y_mm", "z_mm", "color"]
+    try:
+        with open(csv_path, mode="w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(rows)
+    except Exception as e:
+        print(f"CSV 저장 실패: {e}")
+
 # ====== 메인 ======
 def main():
     # 카메라 관련
@@ -206,7 +219,7 @@ def main():
                 cx,cy = h["center"]
                 cv2.circle(vis,(cx+xoff,cy),4,(255,255,255),-1)
 
-        # 3D 좌표 계산 + 화면에 표시 + CSV 저장
+        # 3D 좌표 계산 + 화면에 표시 + 실시간 CSV 저장
         for hL in holdsL:
             hid = hL["hold_index"]
             hR = next((x for x in holdsR if x["hold_index"] == hid), None)
@@ -225,16 +238,18 @@ def main():
                     "z_mm": X[2],
                     "color": hL["class_name"]
                 })
-        # CSV 저장
 
-    fieldnames = ["hold_id", "x_mm", "y_mm", "z_mm", "color"]
-    with open(CSV_GRIPS_PATH, mode="w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(rows)
-    print(f"CSV 저장 완료: {CSV_GRIPS_PATH}")
+        # --- 여기서 실시간 저장 ---
+        save_holds_to_csv(rows, CSV_GRIPS_PATH)
+
+        # 화면 표시
+        cv2.imshow("Stereo YOLO 3D", vis)
+        if cv2.waitKey(1) & 0xFF == 27:  # ESC로 종료
+            break
+
     cap1.release(); cap2.release()
     cv2.destroyAllWindows()
+    print(f"CSV 저장 완료: {CSV_GRIPS_PATH}")
 
 if __name__=="__main__":
     main()
