@@ -97,19 +97,19 @@ ALL_COLORS = {
     'black':'Hold_Black','gray':'Hold_Gray','lime':'Hold_Lime','sky':'Hold_Sky',
 }
 # ======== Servo controller import (stub fallback) ========
-try:
-    from servo_control import DualServoController
-    HAS_SERVO = True
-except Exception:
-    HAS_SERVO = False
-    class DualServoController:
-        def __init__(self, *a, **k): print("[Servo] (stub) controller unavailable")
-        def set_angles(self, pitch=None, yaw=None): print(f"[Servo] (stub) set_angles: P={pitch}, Y={yaw}")
-        def center(self): print("[Servo] (stub) center")
-        def query(self): print("[Servo] (stub) query"); return ""
-        def laser_on(self): print("[Servo] (stub) laser_on")
-        def laser_off(self): print("[Servo] (stub) laser_off")
-        def close(self): pass
+# try:
+#     from servo_control import DualServoController
+#     HAS_SERVO = True
+# except Exception:
+#     HAS_SERVO = False
+#     class DualServoController:
+#         def __init__(self, *a, **k): print("[Servo] (stub) controller unavailable")
+#         def set_angles(self, pitch=None, yaw=None): print(f"[Servo] (stub) set_angles: P={pitch}, Y={yaw}")
+#         def center(self): print("[Servo] (stub) center")
+#         def query(self): print("[Servo] (stub) query"); return ""
+#         def laser_on(self): print("[Servo] (stub) laser_on")
+#         def laser_off(self): print("[Servo] (stub) laser_off")
+#         def close(self): pass
 
 
 def _sanitize_label(s: str) -> str:
@@ -171,6 +171,7 @@ def load_stereo(npz_path):
 
 def open_cams(idx1, idx2, size):
     W, H = size
+    # CAP_V4L2 -> Linux Environment
     cap1 = cv2.VideoCapture(idx1, cv2.CAP_V4L2)
     cap2 = cv2.VideoCapture(idx2, cv2.CAP_V4L2)
     cap1.set(cv2.CAP_PROP_FRAME_WIDTH,  W); cap1.set(cv2.CAP_PROP_FRAME_HEIGHT, H)
@@ -178,7 +179,6 @@ def open_cams(idx1, idx2, size):
     if not cap1.isOpened() or not cap2.isOpened():
         raise SystemExit("카메라 오픈 실패. 연결/권한 확인.")
     return cap1, cap2
-
 def rectify(frame, mx, my, size):
     W, H = size
     if (frame.shape[1], frame.shape[0]) != (W, H):
@@ -301,13 +301,6 @@ def imshow_scaled(win, img, maxw=None):
 def xoff_for(side, W, swap):
     return (W if swap else 0) if side=="L" else (0 if swap else W)
 
-def send_servo_angles(ctl, yaw_cmd, pitch_cmd):
-    try:
-        print(f"[Servo] send: yaw={yaw_cmd:.2f}°, pitch={pitch_cmd:.2f}°")
-        ctl.set_angles(pitch_cmd, yaw_cmd)  # (pitch, yaw) 순서
-    except Exception as e:
-        print(f"[Servo ERROR] {e}")
-
 # ---------- 장세환의 추가 코드 --------------
 
 def test_triangulate(ptsL, ptsR, P1, P2):
@@ -388,10 +381,6 @@ def reprojection_error(ptsL, ptsR, pts3D, P1, P2):
     print(f"[Summary] Avg error: Left={np.mean(errs_L):.2f}px, Right={np.mean(errs_R):.2f}px")
     return errs_L, errs_R, reproj_coords
 
-def angle_to_pwm(angle_deg, min_ms=1.0, max_ms=2.0, min_deg=0, max_deg=180):
-    ms = min_ms + (angle_deg - min_deg) * (max_ms - min_ms) / (max_deg - min_deg)
-    return ms
-
 def save_reproj_right_image(f_right, map2x, map2y, size, reproj_coords, common_ids, filename="reproj_right.png"):
     """
     우측 카메라에 재투영한 3D 좌표를 이미지에 점으로 표시하고 PNG로 저장.
@@ -420,14 +409,46 @@ def save_reproj_right_image(f_right, map2x, map2y, size, reproj_coords, common_i
     print(f"[Saved] Reprojected right image -> {filename}")
 
 # ---------- 장세환의 추가 코드 --------------
+def project_point(P, X):
+    """
+    3D 점 X를 카메라 행렬 P로 투영
+    P : 3x4 projection matrix
+    X : 3D point [X, Y, Z]
+    return : (px, py) pixel 좌표
+    """
+    X_h = np.hstack([X, 1.0])          # 동차좌표
+    x_proj = P @ X_h
+    x_proj /= x_proj[2]
+    return int(x_proj[0]), int(x_proj[1])
+
+def draw_camera_origin(img, P, Z_dummy=3000, color=(0,0,255), label="Camera origin"):
+    """
+    이미지에 카메라 중앙점(0,0,Z_dummy)을 찍음
+    """
+    origin_3D = np.array([0.0, 0.0, Z_dummy])
+    px, py = project_point(P, origin_3D)
+    cv2.circle(img, (px, py), 6, color, -1)
+    cv2.putText(img, label, (px+5, py-5),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
+    return img
 # ---------- 메인 ----------
 
 def main():
+
     # 경로 검증
     for p in (NPZ_PATH, MODEL_PATH):
         if not Path(p).exists():
             raise FileNotFoundError(f"파일을 찾을 수 없습니다: {p}")
 
+    # 아두이노 연결
+    import serial
+    import struct
+    import time
+
+    # 아두이노 시리얼 초기화
+    ser = serial.Serial("/dev/ttyUSB0", 115200, timeout=1)
+    time.sleep(2)  # 아두이노 리셋 대기
+    
     # 스테레오 로드
     map1x, map1y, map2x, map2y, P1, P2, size, B, M = load_stereo(NPZ_PATH)
     W, H = size
@@ -435,7 +456,7 @@ def main():
 
     # 레이저 원점 O (LEFT 기준)
     L = np.array([0.0, 0.0, 0.0], dtype=np.float64)
-    dx = -LASER_OFFSET_CM_LEFT * 10.0
+    dx = LASER_OFFSET_CM_LEFT * 10.0
     dy = (-1.0 if Y_UP_IS_NEGATIVE else 1.0) * LASER_OFFSET_CM_UP * 10.0
     dz = LASER_OFFSET_CM_FWD * 10.0
     O  = L + np.array([dx, dy, dz], dtype=np.float64)
@@ -465,6 +486,10 @@ def main():
             raise SystemExit("초기 프레임 캡쳐 실패")
         Lr_k = rectify(f1, map1x, map1y, size)
         Rr_k = rectify(f2, map2x, map2y, size)
+        # Lr_k_vis = draw_camera_origin(Lr_k.copy(), P1, origin_3D=O)
+        # Rr_k_vis = draw_camera_origin(Rr_k.copy(), P2, origin_3D=O)
+
+
         holdsL_k = extract_holds_with_indices(Lr_k, model, selected_class_name, THRESH_MASK, ROW_TOL_Y)
         holdsR_k = extract_holds_with_indices(Rr_k, model, selected_class_name, THRESH_MASK, ROW_TOL_Y)
         L_sets.append(holdsL_k); R_sets.append(holdsR_k)
@@ -497,6 +522,18 @@ def main():
     print(f"[Epipolar check] 평균 Y 오차: {np.mean(y_errors):.2f}px, 최대: {np.max(y_errors):.2f}px")
 
     pts3D = test_triangulate(ptsL, ptsR, P1, P2)
+    # pts3D로 이제 각도 계산
+    for i, point in enumerate(pts3D):
+        # 1. 레이저 원점 기준으로 pitch, yaw 각도 계산
+        pitch_deg, yaw_deg = point_to_motor_angles(point, O)
+
+        
+        # 3. 값 확인
+        print(f"Point {i}: Pitch={pitch_deg:.2f}° ({pitch_pwm}us), Yaw={yaw_deg:.2f}° ({yaw_pwm}us)")
+        
+        # 서보가 목표 위치에 도달할 시간을 잠깐 기다릴 수도 있음
+        time.sleep(0.5)
+    
     errs_L, errs_R, reproj_coords = reprojection_error(ptsL, ptsR, pts3D, P1, P2)
     print(f"errs_L is {errs_L}")
     print(f"errs_R is {errs_R}")
@@ -537,9 +574,9 @@ def main():
         next_id_map[a_id]   = b_id
         delta_from_id[a_id] = (dyaw, dpitch)
 
-    print("[ΔAngles] (hold_index order):")
-    for a_id, b_id, dyaw, dpitch, d3d in angle_deltas:
-        print(f"  {a_id}->{b_id}: Δyaw={dyaw:+.2f}°, Δpitch={dpitch:+.2f}°, angle={d3d:.2f}°")
+    # print("[ΔAngles] (hold_index order):")
+    # for a_id, b_id, dyaw, dpitch, d3d in angle_deltas:
+    #     print(f"  {a_id}->{b_id}: Δyaw={dyaw:+.2f}°, Δpitch={dpitch:+.2f}°, angle={d3d:.2f}°")
     
 
     # ===== Servo 초기화 & 초기 조준 =====
@@ -587,13 +624,13 @@ def main():
                 cxR_vis = cxR + W
 
                 # 빨강: 원래 YOLO 중심
-                cv2.circle(vis, (cxL, cyL), 5, (0, 0, 255), -1)       # 좌측
-                cv2.circle(vis, (cxR_vis, cyR), 5, (0, 0, 255), -1)   # 우측
+                cv2.circle(vis, (cxL, cyL), 1, (0, 0, 255), -1)       # 좌측
+                cv2.circle(vis, (cxR_vis, cyR), 1, (0, 0, 255), -1)   # 우측
 
                 # 녹색: 재투영 좌표
                 pxL, pyL, pxR, pyR = reproj_coords[i]  # reprojection_error 또는 직접 계산
-                cv2.circle(vis, (int(pxL), int(pyL)), 6, (0, 255, 0), 2)       # 좌측
-                cv2.circle(vis, (int(pxR) + W, int(pyR)), 6, (0, 255, 0), 2)   # 우측
+                cv2.circle(vis, (int(pxL), int(pyL)), 2, (0, 255, 0), 2)       # 좌측
+                cv2.circle(vis, (int(pxR) + W, int(pyR)), 2, (0, 255, 0), 2)   # 우측
 
                 # ID 텍스트
                 cv2.putText(vis, f"{hid}", (cxL-10, cyL-10),

@@ -27,7 +27,6 @@ import argparse
 
 # === MediaPipe 모듈 ===
 from Climb_Mediapipe import PoseTracker, TouchCounter, draw_pose_points
-from test_angle import point_to_motor_angles
 
 # === (NEW) 웹 모듈 - 색상 선택 ===
 _USE_WEB = True
@@ -98,19 +97,19 @@ ALL_COLORS = {
     'black':'Hold_Black','gray':'Hold_Gray','lime':'Hold_Lime','sky':'Hold_Sky',
 }
 # ======== Servo controller import (stub fallback) ========
-try:
-    from servo_control import DualServoController
-    HAS_SERVO = True
-except Exception:
-    HAS_SERVO = False
-    class DualServoController:
-        def __init__(self, *a, **k): print("[Servo] (stub) controller unavailable")
-        def set_angles(self, pitch=None, yaw=None): print(f"[Servo] (stub) set_angles: P={pitch}, Y={yaw}")
-        def center(self): print("[Servo] (stub) center")
-        def query(self): print("[Servo] (stub) query"); return ""
-        def laser_on(self): print("[Servo] (stub) laser_on")
-        def laser_off(self): print("[Servo] (stub) laser_off")
-        def close(self): pass
+# try:
+#     from servo_control import DualServoController
+#     HAS_SERVO = True
+# except Exception:
+#     HAS_SERVO = False
+#     class DualServoController:
+#         def __init__(self, *a, **k): print("[Servo] (stub) controller unavailable")
+#         def set_angles(self, pitch=None, yaw=None): print(f"[Servo] (stub) set_angles: P={pitch}, Y={yaw}")
+#         def center(self): print("[Servo] (stub) center")
+#         def query(self): print("[Servo] (stub) query"); return ""
+#         def laser_on(self): print("[Servo] (stub) laser_on")
+#         def laser_off(self): print("[Servo] (stub) laser_off")
+#         def close(self): pass
 
 
 def _sanitize_label(s: str) -> str:
@@ -172,6 +171,7 @@ def load_stereo(npz_path):
 
 def open_cams(idx1, idx2, size):
     W, H = size
+    # CAP_V4L2 -> Linux Environment
     cap1 = cv2.VideoCapture(idx1, cv2.CAP_V4L2)
     cap2 = cv2.VideoCapture(idx2, cv2.CAP_V4L2)
     cap1.set(cv2.CAP_PROP_FRAME_WIDTH,  W); cap1.set(cv2.CAP_PROP_FRAME_HEIGHT, H)
@@ -179,7 +179,6 @@ def open_cams(idx1, idx2, size):
     if not cap1.isOpened() or not cap2.isOpened():
         raise SystemExit("카메라 오픈 실패. 연결/권한 확인.")
     return cap1, cap2
-
 def rectify(frame, mx, my, size):
     W, H = size
     if (frame.shape[1], frame.shape[0]) != (W, H):
