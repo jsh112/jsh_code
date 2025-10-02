@@ -1,32 +1,16 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Stereo YOLOv8n-Seg (first 10 frames merged) + MediaPipe-on-Left → Live overlay (mm)
-+ Laser-origin yaw/pitch per hold (LEFT-camera-based)
-+ ✅ DualServoController 연동 + Δ테이블(dyaw, dpitch) 기반 상대 이동
-+ ✅ MediaPipe 모듈(import from B_Mediapipe)
-+ ✅ (NEW) 웹 기반 색상 선택 지원
-+ ✅ (NEW) 잡은 홀드(성공한 홀드)를 화면에서 칠해주기(반투명 표시)
-    - 네트워크 비활성화 환경이면 --no_web 사용(키보드 입력 대체 방식)
-
-사용 예시:
-  python A_main.py --port COM8 --baud 115200 --pitch 90 --yaw 90
-  python A_main.py --port COM8 --baud 115200 --pitch 90 --yaw 90 --no_web  # 콘솔로 색 선택
-
-필요 파일(같은 폴더): B_Mediapipe.py, servo_control.py, A_web.py
-사전 설치: pip install ultralytics opencv-python mediapipe flask(선택)`
-"""
-
 import time
+import cv2
 import numpy as np
 from pathlib import Path
 from ultralytics import YOLO
 import csv
-import cv2
 import argparse
 
 # === MediaPipe 모듈 ===
 from Climb_Mediapipe import PoseTracker, TouchCounter, draw_pose_points
+
+# 레이저 찾기
+from find_laser import capture_once_and_return 
 
 # === (NEW) 웹 모듈 - 색상 선택 ===
 _USE_WEB = True
@@ -38,17 +22,15 @@ except Exception:
         raise RuntimeError("color_web 모듈(A_web)이 로드되지 않았습니다.")
 
 # ========= 사용자 환경 경로 =========
-NPZ_PATH       = r"/home/jsh/Desktop/JSH_CODE/jsh_code/stereo_params_scaled.npz"
-MODEL_PATH     = r"/home/jsh/Desktop/JSH_CODE/jsh_code/best_5.pt"
+NPZ_PATH       = r"C:\Users\PC\Desktop\Segmentation_Hold\stereo_params_scaled.npz"
+MODEL_PATH     = r"C:\Users\PC\Desktop\Segmentation_Hold\best_5.pt"
 
-CAM1_INDEX     = 0   # 왼쪽 카메라
-CAM2_INDEX     = 1   # 오른쪽 카메라
+CAM1_INDEX     = 1   # 왼쪽 카메라
+CAM2_INDEX     = 2   # 오른쪽 카메라
 
-SWAP_INPUT     = False   # 입력 좌/우 스왑
 SWAP_DISPLAY   = False   # 화면 표시 좌/우 스왑
 
-WINDOW_NAME    = "Rectified L | R  (10f merged; MP Left; Δ-Relative Servo + WEB)"
-SHOW_GRID      = False
+WINDOW_NAME    = "Rectified L | R"
 THRESH_MASK    = 0.7
 ROW_TOL_Y      = 30
 SELECTED_COLOR = None    # 예: 'orange' (None=전체)
@@ -63,18 +45,15 @@ OUT_FPS        = 30
 OUT_PATH       = "stereo_overlay.mp4"
 CSV_GRIPS_PATH = "grip_records.csv"
 
-# ---- 레이저 원점(LEFT 기준) 오프셋 (cm) ----
-LASER_OFFSET_CM_LEFT = 1.85
-LASER_OFFSET_CM_UP   = 8.0
-LASER_OFFSET_CM_FWD  = -3.3
-Y_UP_IS_NEGATIVE     = True  # 위 방향이 -y인 좌표계면 True
+# 런타임 보정 오프셋(레이저 실측)
+CAL_YAW_OFFSET   = 0.0
+CAL_PITCH_OFFSET = 0.0
 
-# 각도 보정/선형 캘리브레이션(필요시 사용)
-YAW_OFFSET_DEG   = 0.0
-PITCH_OFFSET_DEG = 0.0
-USE_LINEAR_CAL   = False
-A11, A12, B1     = 1.0, 0.0, 0.0
-A21, A22, B2     = 0.0, 1.0, 0.0
+# ---- 레이저 원점(LEFT 기준) 오프셋 (cm) ----
+LASER_OFFSET_CM_LEFT = 1.15
+LASER_OFFSET_CM_UP   = 5.2
+LASER_OFFSET_CM_FWD  = -0.6
+Y_UP_IS_NEGATIVE     = True  # 위 방향이 -y인 좌표계면 True
 
 # === 서보 기준(중립 90/90) & 부호/스케일 ===
 BASE_YAW_DEG   = 90.0   # 서보 중립
@@ -171,8 +150,8 @@ def load_stereo(npz_path):
 
 def open_cams(idx1, idx2, size):
     W, H = size
-    cap1 = cv2.VideoCapture(idx1, cv2.CAP_V4L2)
-    cap2 = cv2.VideoCapture(idx2, cv2.CAP_V4L2)
+    cap1 = cv2.VideoCapture(idx1, cv2.CAP_DSHOW)
+    cap2 = cv2.VideoCapture(idx2, cv2.CAP_DSHOW)
     cap1.set(cv2.CAP_PROP_FRAME_WIDTH,  W); cap1.set(cv2.CAP_PROP_FRAME_HEIGHT, H)
     cap2.set(cv2.CAP_PROP_FRAME_WIDTH,  W); cap2.set(cv2.CAP_PROP_FRAME_HEIGHT, H)
     if not cap1.isOpened() or not cap2.isOpened():
@@ -308,17 +287,27 @@ def send_servo_angles(ctl, yaw_cmd, pitch_cmd):
     except Exception as e:
         print(f"[Servo ERROR] {e}")
 
+def raw_to_rectified_point(pt_xy, K, D, R, P):
+    """
+    원본(왜곡 포함) 픽셀 좌표 pt_xy -> 레티파이된 픽셀 좌표로 변환.
+    K,D,R,P 는 stereo npz에서 읽은 해당 카메라 파라미터.
+    """
+    if pt_xy is None:
+        return None
+    # (x,y) -> (1,1,2) 형태로
+    pts = np.array([[pt_xy]], dtype=np.float32)  # shape (1,1,2)
+    # undistortPoints: 정규화 좌표로 보정 + R,P 적용하여 레티파이된 좌표로 변환
+    # 결과 shape (1,1,2) 의 (x', y') 가 바로 레티파이된 픽셀 좌표
+    rect = cv2.undistortPoints(pts, K, D, R=R, P=P)
+    x_r, y_r = rect[0,0,0], rect[0,0,1]
+    return (int(round(x_r)), int(round(y_r)))
+
 # ---------- 메인 ----------
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--port", default="/dev/ttyUSB0")
+    ap.add_argument("--port", default="COM15")
     ap.add_argument("--baud", type=int, default=115200)
-    ap.add_argument("--center", action="store_true")
-    ap.add_argument("--pitch", type=float, default=None, help="초기 각도(옵션). 미지정 시 첫 타깃으로 자동 조준")
-    ap.add_argument("--yaw",   type=float, default=None, help="초기 각도(옵션). 미지정 시 첫 타깃으로 자동 조준")
-    ap.add_argument("--laser_on",  action="store_true")
-    ap.add_argument("--laser_off", action="store_true")
     ap.add_argument("--no_auto_advance", action="store_true")
     ap.add_argument("--no_web", action="store_true")
     args = ap.parse_args()
@@ -327,11 +316,51 @@ def main():
     for p in (NPZ_PATH, MODEL_PATH):
         if not Path(p).exists():
             raise FileNotFoundError(f"파일을 찾을 수 없습니다: {p}")
-
+        
     # 스테레오 로드
     map1x, map1y, map2x, map2y, P1, P2, size, B, M = load_stereo(NPZ_PATH)
     W, H = size
     print(f"[Info] image_size={(W,H)}, baseline~{B:.2f} mm")
+    # ===== (NEW) 레이저 좌표 먼저 측정 (find_laser) =====
+    try:
+        laser_raw = capture_once_and_return(
+            port=args.port,
+            baud=args.baud,
+            wait_s=2.0,
+            settle_n=8,
+            show_preview=True,           # 히트맵 확인하고 싶으면 True
+            center_pitch=90.0,           # ← 필수: 시작 90/90
+            center_yaw=90.0,
+            servo_settle_s=0.5
+        )
+    except Exception as e:
+        print(f"[A_Climbing] find_laser error: {e} → continue without laser")
+        laser_raw = None
+
+    if laser_raw is None:
+        print("[A_Climbing] 레이저 좌표 취득 실패(취소/에러). 계속 진행.")
+        laser_px = None
+    else:
+        # 원본 좌표(보정 전)
+        cam0_raw = laser_raw["cam0"]  # 보통 LEFT(=CAM1_INDEX=1)
+        cam1_raw = laser_raw["cam1"]  # 보통 RIGHT(=CAM2_INDEX=2)
+
+        # npz에서 내부/왜곡/정렬행렬을 꺼내야 함
+        S = np.load(NPZ_PATH, allow_pickle=True)
+        K1, D1, R1, P1_ = S["K1"], S["D1"], S["R1"], S["P1"]
+        K2, D2, R2, P2_ = S["K2"], S["D2"], S["R2"], S["P2"]
+
+        # 원본→레티파이 좌표로 변환
+        camL_rect = raw_to_rectified_point(cam0_raw, K1, D1, R1, P1_) if cam0_raw else None
+        camR_rect = raw_to_rectified_point(cam1_raw, K2, D2, R2, P2_) if cam1_raw else None
+
+        laser_px = {
+            "left_rect":  camL_rect,   # Lr 좌표계
+            "right_rect": camR_rect,   # Rr 좌표계
+            "image_size": (W, H),
+        }
+        print(f"[A_Climbing] 레이저(원본): L={cam0_raw}, R={cam1_raw}")
+        print(f"[A_Climbing] 레이저(레티파이): L={camL_rect}, R={camR_rect}")
 
     # 레이저 원점 O (LEFT 기준)
     L = np.array([0.0, 0.0, 0.0], dtype=np.float64)
@@ -388,8 +417,6 @@ def main():
 
     # 카메라 & 모델
     capL_idx, capR_idx = CAM1_INDEX, CAM2_INDEX
-    if SWAP_INPUT:
-        capL_idx, capR_idx = capR_idx, capL_idx
     cap1, cap2 = open_cams(capL_idx, capR_idx, size)
     model = YOLO(str(MODEL_PATH))
 
@@ -399,7 +426,7 @@ def main():
     for _ in range(2):
         cap1.read(); cap2.read()  # 워밍업
 
-    for k in range(3):
+    for k in range(10):
         ok1, f1 = cap1.read(); ok2, f2 = cap2.read()
         if not (ok1 and ok2):
             cap1.release(); cap2.release()
@@ -409,7 +436,7 @@ def main():
         holdsL_k = extract_holds_with_indices(Lr_k, model, selected_class_name, THRESH_MASK, ROW_TOL_Y)
         holdsR_k = extract_holds_with_indices(Rr_k, model, selected_class_name, THRESH_MASK, ROW_TOL_Y)
         L_sets.append(holdsL_k); R_sets.append(holdsR_k)
-        print(f"  - frame {k+1}/3: L={len(holdsL_k)}  R={len(holdsR_k)}")
+        print(f"  - frame {k+1}/10: L={len(holdsL_k)}  R={len(holdsR_k)}")
 
     holdsL = assign_indices(merge_holds_by_center(L_sets, 18), ROW_TOL_Y)
     holdsR = assign_indices(merge_holds_by_center(R_sets, 18), ROW_TOL_Y)
@@ -467,37 +494,82 @@ def main():
     for a_id, b_id, dyaw, dpitch, d3d in angle_deltas:
         print(f"  {a_id}->{b_id}: Δyaw={dyaw:+.2f}°, Δpitch={dpitch:+.2f}°, angle={d3d:.2f}°")
 
-    # ===== Servo 초기화 & 초기 자동 조준 (NEW) =====
+    # ===== Servo 초기화 & '레이저→첫 홀드' Δ각 기반 초기 조준 =====
     ctl = DualServoController(args.port, args.baud) if HAS_SERVO else DualServoController()
 
-    # 1) 첫 타깃 선택 (CSV 첫 항목 우선, 없으면 by_id 중 최소 ID)
+    # 1) 첫 타깃 ID 결정 (CSV 우선, 없으면 최솟값)
     if route_ids:
         current_target_id = route_ids[0]
     else:
         current_target_id = min(by_id.keys()) if by_id else None
 
-    # 2) 첫 타깃 절대각 계산 → 캘리브레이션 적용
-    if current_target_id is not None:
-        mr0 = by_id[current_target_id]               # {'yaw_deg','pitch_deg', ...}
-        auto_yaw, auto_pitch = mr0["yaw_deg"], mr0["pitch_deg"]
-        yaw_cmd0, pitch_cmd0 = to_servo_cmd(auto_yaw, auto_pitch)
+    # 2) 레이저 3D 구하기 (좌/우 레티파이 픽셀로 삼각측량)
+    def _triangulate_laser_3d(laser_px, P1, P2):
+        if (not laser_px): 
+            return None
+        Lp = laser_px.get("left_rect"); Rp = laser_px.get("right_rect")
+        if (Lp is None) or (Rp is None):
+            return None
+        return triangulate_xy(P1, P2, Lp, Rp)
+
+    X_laser = _triangulate_laser_3d(laser_px, P1, P2)
+
+    # 3) 서보는 중립 90/90에서 시작한 뒤(규약), Δ각을 적용해 첫 홀드로 보낸다
+    cur_yaw, cur_pitch = BASE_YAW_DEG, BASE_PITCH_DEG
+    try:
+        ctl.set_angles(cur_pitch, cur_yaw)  # (pitch, yaw) 순서
+        try:
+            if args.laser_on: ctl.laser_on()
+        except: 
+            pass
+    except Exception as e:
+        print("[Init] Servo init error:", e)
+
+    if (current_target_id is None) or (current_target_id not in by_id) or (X_laser is None):
+        # 레이저 측정 실패 등 → 안전 폴백 (기존 절대각 또는 90/90 유지)
+        print("[Init] 레이저 3D 또는 첫 타깃 없음 → 폴백 초기 조준 사용")
+        if current_target_id is not None:
+            mr0 = by_id[current_target_id]
+            auto_yaw, auto_pitch = mr0["yaw_deg"], mr0["pitch_deg"]
+            yaw_cmd0, pitch_cmd0 = to_servo_cmd(auto_yaw, auto_pitch)
+            try:
+                ctl.set_angles(pitch_cmd0, yaw_cmd0)
+                cur_yaw, cur_pitch = yaw_cmd0, pitch_cmd0
+            except Exception as e:
+                print("[Init-Point Fallback] Servo move error:", e)
     else:
-        yaw_cmd0, pitch_cmd0 = 0.0, 0.0              # 안전 기본값
+        # 4) 첫 홀드 3D
+        X_hold = by_id[current_target_id]["X"]
 
-    # 3) 사용자 각도 제공 여부 체크 → 없으면 자동 조준 사용
-    pitch_arg = getattr(args, "pitch", None)         # argparse에 --pitch/--yaw 없더라도 안전
-    yaw_arg   = getattr(args, "yaw",   None)
-    user_angles_provided = (pitch_arg is not None) and (yaw_arg is not None)
+        # 5) 같은 원점 O에서 광학각 계산 (yaw/pitch)
+        yaw_laser,  pitch_laser  = yaw_pitch_from_X(X_laser, O, Y_UP_IS_NEGATIVE)
+        yaw_hold,   pitch_hold   = yaw_pitch_from_X(X_hold,  O, Y_UP_IS_NEGATIVE)
 
-    if user_angles_provided:
-        cur_pitch, cur_yaw = float(pitch_arg), float(yaw_arg)
-        print(f"[Init-Point] Using user angles: yaw={cur_yaw:.2f}°, pitch={cur_pitch:.2f}°")
-    else:
-        cur_yaw, cur_pitch = yaw_cmd0, pitch_cmd0
-        print(f"[Init-Point] Auto to ID{current_target_id}: yaw={cur_yaw:.2f}°, pitch={cur_pitch:.2f}°")
+        # 6) Δ각 = hold - laser  (wrap으로 -180~180° 보정)
+        d_yaw   = wrap_deg(yaw_hold  - yaw_laser)
+        d_pitch = wrap_deg(pitch_hold - pitch_laser)
 
-    # 4) 실제 서보 반영 + 자동진행 플래그
-    ctl.set_angles(cur_pitch, cur_yaw)
+        # (선택) 실측 오프셋 반영
+        d_yaw   += CAL_YAW_OFFSET
+        d_pitch += CAL_PITCH_OFFSET
+
+        # 7) 서보 명령각 = 90/90 + Δ각(부호/스케일 반영)
+        target_yaw   = BASE_YAW_DEG   + YAW_SIGN   * (YAW_SCALE   * d_yaw)
+        target_pitch = BASE_PITCH_DEG + PITCH_SIGN * (PITCH_SCALE * d_pitch)
+        target_yaw   = max(0.0, min(180.0, target_yaw))
+        target_pitch = max(0.0, min(180.0, target_pitch))
+
+        print(f"[Init-Target] laser yaw/pitch=({yaw_laser:.2f},{pitch_laser:.2f})°, "
+            f"hold=({yaw_hold:.2f},{pitch_hold:.2f})°  "
+            f"Δ=({d_yaw:+.2f},{d_pitch:+.2f})°  -> servo Y/P=({target_yaw:.2f},{target_pitch:.2f})")
+
+        try:
+            ctl.set_angles(target_pitch, target_yaw)  # (pitch, yaw) 순서
+            cur_yaw, cur_pitch = target_yaw, target_pitch
+        except Exception as e:
+            print("[Init-Target] Servo move error:", e)
+
+    # 이후 로직에서 자동 진행 사용 플래그 유지
     auto_advance_enabled = (not args.no_auto_advance)
 
     # ==== MediaPipe Pose ====
@@ -516,7 +588,6 @@ def main():
 
     # 화면
     cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
-    cv2.resizeWindow(WINDOW_NAME, W, H)
     t_prev = time.time()
 
     # (NEW) 프레임 내 연쇄 넘김 방지 디바운스 타임스탬프
@@ -530,9 +601,17 @@ def main():
 
             Lr = rectify(f1, map1x, map1y, size)
             Rr = rectify(f2, map2x, map2y, size)
+
+            # (옵션) 레이저 점 시각 확인
+            if laser_px:
+                if laser_px["left_rect"] is not None:
+                    lx, ly = laser_px["left_rect"]
+                    cv2.circle(Lr, (lx, ly), 8, (0,0,255), 2, cv2.LINE_AA)
+                if laser_px["right_rect"] is not None:
+                    rx, ry = laser_px["right_rect"]
+                    cv2.circle(Rr, (rx, ry), 8, (0,0,255), 2, cv2.LINE_AA)
+
             vis = np.hstack([Rr, Lr]) if SWAP_DISPLAY else np.hstack([Lr, Rr])
-            if SHOW_GRID:
-                draw_grid(vis[:, :W]); draw_grid(vis[:, W:])
 
             # 검출 결과 그리기(성공 홀드는 반투명 칠하기)
             for side, holds in (("L", holdsL), ("R", holdsR)):
