@@ -12,14 +12,22 @@ class StereoSystem:
         self.size = (self.W, self.H)
 
         self.map1x, self.map1y = cv2.initUndistortRectifyMap(
-            self.K1, self.D1, self.R1, self.P1, self.size, cv2.CV_32FC1)
+            self.K1, self.D1, self.R1, self._P1, self.size, cv2.CV_32FC1)
         self.map2x, self.map2y = cv2.initUndistortRectifyMap(
-            self.K2, self.D2, self.R2, self.P2, self.size, cv2.CV_32FC1)
+            self.K2, self.D2, self.R2, self._P2, self.size, cv2.CV_32FC1)
 
-        Tx = -self._P2[0, 3] / -self._P2[0, 0]
-        self.B = float(abs(Tx))
-        self.M = np.array([0.5 * Tx, 0.0, 0.0], dtype=np.float64)  # 기준점(시각화시)
+        tx = -self._P2[0, 3] / -self._P2[0, 0]
+        self.B = float(abs(tx))
+        self.M = np.array([0.5 * tx, 0.0, 0.0], dtype=np.float64)  # 기준점(시각화시)
         print(f"[Info] image_size=({self.W},{self.H}), baseline~{self.B:.2f} mm")
+
+    @property
+    def p1(self):
+        return self._P1
+
+    @property
+    def p2(self):
+        return self._P2
 
     def open_cams(self, idx1, idx2):
         cap1 = cv2.VideoCapture(idx1, cv2.CAP_V4L2)
@@ -34,7 +42,7 @@ class StereoSystem:
         return cap1, cap2
 
     @staticmethod
-    def raw_to_rectified_point(self,pt_xy,k,d,r,p):
+    def raw_to_rectified_point(pt_xy,k,d,r,p):
         """
         원본(왜곡 포함) 픽셀 좌표 pt_xy -> 레티파이된 픽셀 좌표로 변환.
         K,D,R,P 는 stereo npz에서 읽은 해당 카메라 파라미터.

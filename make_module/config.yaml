@@ -1,0 +1,20 @@
+# config.yaml
+
+# 카메라
+cam_left_index: 1
+cam_right_index: 2
+frame_width: 640
+frame_height: 480
+
+# 레이저 / 서보
+port: "/dev/ttyUSB0"
+baud: 115200
+center_pitch: 90.0
+center_yaw: 90.0
+servo_settle_s: 0.5
+wait_s: 2.0
+settle_n: 8
+show_preview: true
+
+# 스테레오 파라미터
+npz_path: "/home/jsh/Desktop/JSH_CODE/jsh_code/stereo_params_scaled.npz"
